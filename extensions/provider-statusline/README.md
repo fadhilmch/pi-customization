@@ -86,6 +86,10 @@ The query editor now has a lightweight Vim modal mode:
 
 For full Vim, use `Ctrl+G` to open the external editor configured by `$VISUAL`/`$EDITOR`.
 
+## Shortcut help
+
+Press `F1` to fill the editor with Pi's built-in `/hotkeys` command, then press `Enter` to see the current shortcuts, including extension shortcuts. This uses Pi's configured keybindings, so the list stays accurate after customization.
+
 ## Tests
 
 ```bash

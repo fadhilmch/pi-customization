@@ -5,6 +5,7 @@ import vimEditor from "./vim-editor.ts";
 const { buildPrimaryItems, formatWorkspacePath, getProviderKind } = require("./format.js");
 const { getSessionCostText } = require("./cost.js");
 const { loadQuotaSnapshot, normalizeHeaderQuota } = require("./quota.js");
+const { registerHotkeysShortcut } = require("./shortcuts.js");
 
 const REFRESH_MS = 60_000;
 const BOLD = "\u001b[1m";
@@ -83,6 +84,7 @@ function makeSecondaryLine(ctx: ExtensionContext, branch?: string): string {
 
 export default function providerStatusline(pi: ExtensionAPI) {
   vimEditor(pi);
+  registerHotkeysShortcut(pi);
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   let requestRender: (() => void) | undefined;
   let responseQuota: ReturnType<typeof normalizeHeaderQuota> = null;

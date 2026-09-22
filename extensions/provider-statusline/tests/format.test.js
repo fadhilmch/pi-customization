@@ -8,6 +8,34 @@ const {
   buildPrimaryItems,
 } = require('../format.js');
 
+test('registers F1 as a shortcut for the built-in hotkeys command', async () => {
+  const { registerHotkeysShortcut } = require('../shortcuts.js');
+  const registrations = [];
+  const pi = {
+    registerShortcut(key, options) {
+      registrations.push({ key, options });
+    },
+  };
+
+  registerHotkeysShortcut(pi);
+
+  assert.equal(registrations.length, 1);
+  assert.equal(registrations[0].key, 'f1');
+  assert.match(registrations[0].options.description, /keyboard shortcuts/i);
+
+  let editorText;
+  await registrations[0].options.handler({
+    hasUI: true,
+    ui: {
+      setEditorText(text) {
+        editorText = text;
+      },
+    },
+  });
+
+  assert.equal(editorText, '/hotkeys');
+});
+
 test('detects provider kind across pi providers', () => {
   assert.equal(getProviderKind({ provider: 'anthropic', id: 'claude-opus-5' }), 'claude');
   assert.equal(getProviderKind({ provider: 'openai-codex', id: 'gpt-5.4' }), 'codex');
