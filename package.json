@@ -1,0 +1,7 @@
+{
+  "name": "pi-customization",
+  "private": true,
+  "scripts": {
+    "test": "node --test extensions/provider-statusline/tests/format.test.js"
+  }
+}
