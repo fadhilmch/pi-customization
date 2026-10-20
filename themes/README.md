@@ -10,3 +10,7 @@
 - amber/red reserved for warnings and errors
 
 It is registered globally through `~/.pi/agent/settings.json` and can also be selected from `/settings`.
+
+## Claude Dark
+
+`claude-dark.json` approximates the Claude Code palette: orange `#d77757` accent, neutral greys, lavender links/code, and terminal-default (`""`) tool backgrounds so tool output is not boxed. Pair it with `extensions/claude-look/` for the bullets, spinner and header. Tests validate the colour keys against Pi's theme schema.

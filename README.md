@@ -5,6 +5,7 @@ Personal Pi customizations, kept separately from project repositories.
 ## Contents
 
 - `extensions/provider-statusline/` — dark, provider-aware footer and Vim query editor
+- `extensions/claude-look/` — Claude-Code-like spinner, bullets, tool rendering and header (pairs with the `claude-dark` theme)
 - `themes/` — custom Pi themes
 - `adapters/` — provider-specific quota integrations
 
