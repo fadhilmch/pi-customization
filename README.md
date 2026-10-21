@@ -63,7 +63,7 @@ Tools registered with `exposure: "deferred"` stay out of the prompt until `tool_
 { "mcpServers": { "docs": { "command": "mcp-server", "exposure": "deferred" } } }
 ```
 
-Large MCP servers can contribute more active definitions than this repo. Activating a tool mid-session adds a tool change to the transcript. Providers that cannot represent tool changes receive a full checkpoint, which can invalidate the prompt cache once. The deterministic offline spike verified discovery and invocation, but does not produce meaningful model token usage; the real-model `tool_search` round-trip cost remains unmeasured.
+Large MCP servers can contribute more active definitions than this repo. Activating a tool mid-session adds a tool change to the transcript. Providers that cannot represent tool changes receive a full checkpoint, which can invalidate the prompt cache once. A real `github-copilot/gpt-6-luna` spike discovered and called `ask_user` in three requests: 1,382, 2,201, and 2,314 provider-reported tokens (5,897 total, estimated $0.00045352). This measures the whole scenario, not the marginal cost of `tool_search`; that cost varies with provider and context.
 
 ## Install
 
