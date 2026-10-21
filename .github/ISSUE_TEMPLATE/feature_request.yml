@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an improvement or a new extension
+labels: [enhancement]
+body:
+  - type: input
+    id: extension
+    attributes:
+      label: Extension
+      description: Which extension, or "new extension".
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Commands, keys or config you would expect.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

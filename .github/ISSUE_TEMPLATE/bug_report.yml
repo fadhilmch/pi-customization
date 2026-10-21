@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in an extension does not work as documented
+labels: [bug]
+body:
+  - type: dropdown
+    id: extension
+    attributes:
+      label: Extension
+      options:
+        - claude-look
+        - auto-mode
+        - plan-mode
+        - todo
+        - git-checkpoint
+        - handoff
+        - notify
+        - quality-on-write
+        - provider-statusline
+        - vim-editor
+        - themes
+        - packaging / install
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: For auto-mode, include the exact command or tool call.
+    validations:
+      required: true
+  - type: input
+    id: pi
+    attributes:
+      label: Pi version
+      description: Output of `pi --version`
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS and terminal
+      placeholder: macOS 15, Ghostty
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Whole package (git)
+        - Package with a filter
+        - Copied one extension folder
+        - Local clone
+        - npm
+  - type: markdown
+    attributes:
+      value: |
+        A command that auto-mode should have caught is a rule gap, not a security issue. If you found a way to bypass a hard denial or a way for a cloned repo to run commands, report it privately (see SECURITY.md).

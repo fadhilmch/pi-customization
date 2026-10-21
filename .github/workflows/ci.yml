@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (node 24, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      # Node 24: unflagged type stripping for index.ts loads, node --test globbing.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Configure git identity for checkpoint tests
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+      - run: npm test

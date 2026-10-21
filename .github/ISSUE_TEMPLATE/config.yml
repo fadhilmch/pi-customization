@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/fadhilmch/pi-customization/security/advisories/new
+    about: Report vulnerabilities privately, not as a public issue.
+  - name: Pi itself
+    url: https://pi.dev
+    about: Problems in Pi (not in these extensions) belong to the Pi project.
