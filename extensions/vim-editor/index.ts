@@ -64,6 +64,7 @@ class ModalEditor extends CustomEditor {
 
 export default function vimEditor(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
+    if (!ctx.hasUI) return;
     ctx.ui.setEditorComponent((tui, theme, keybindings) =>
       new ModalEditor(tui, theme, keybindings),
     );
