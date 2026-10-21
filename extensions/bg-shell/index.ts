@@ -5,18 +5,19 @@ const { createJobs } = require("./jobs.js");
 const { loadConfig } = require("./config.js");
 const { capOutput } = require("./output.js");
 const { jobsPanel } = require("./panel.js");
+const { reapStale } = require("./reap.js");
 
-const Start = Type.Object({
-  action: Type.Literal("start"), command: Type.String({ description: "Shell command to run" }),
-  cwd: Type.Optional(Type.String({ description: "Working directory" })),
-  name: Type.Optional(Type.String({ description: "Short job name" })),
-  waitFor: Type.Optional(Type.String({ description: "Regex indicating readiness" })),
-  waitSeconds: Type.Optional(Type.Number({ minimum: 0.01, maximum: 120, description: "Readiness wait, at most 120 seconds" })),
+const ACTIONS = ["start", "output", "stop", "list"];
+const Params = Type.Object({
+  action: Type.Unsafe({ type: "string", enum: ACTIONS, description: "start | output | stop | list" }),
+  command: Type.Optional(Type.String({ description: "start: shell command" })),
+  cwd: Type.Optional(Type.String({ description: "start: working directory" })),
+  name: Type.Optional(Type.String({ description: "start: short job name" })),
+  waitFor: Type.Optional(Type.String({ description: "start: regex that signals readiness" })),
+  waitSeconds: Type.Optional(Type.Number({ minimum: 0.01, maximum: 120, description: "start: max readiness wait" })),
+  id: Type.Optional(Type.String({ description: "output/stop: job id" })),
+  filter: Type.Optional(Type.String({ description: "output: regex to keep matching lines" })),
 });
-const Output = Type.Object({ action: Type.Literal("output"), id: Type.String(), filter: Type.Optional(Type.String({ description: "Regex to keep matching lines" })) });
-const Stop = Type.Object({ action: Type.Literal("stop"), id: Type.String() });
-const List = Type.Object({ action: Type.Literal("list") });
-const Params = Type.Union([Start, Output, Stop, List]);
 
 function lines(produce: (width: number) => string[]) { return { render: produce, invalidate() {} }; }
 
@@ -48,7 +49,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerTool({
     name: "bash_bg", label: "BashBg",
-    description: "Run long-lived shell commands in the background, then read new output, stop jobs, or list status. Results are capped and point to the full log when needed.",
+    description: "Run long-lived shell commands in the background: start, then read new output, stop, or list. Output is capped.",
     promptSnippet: "Run long-lived shell commands in the background and read incremental output",
     promptGuidelines: ["Use start with waitFor to launch a server and confirm readiness; use output to read new logs and stop when done."],
     parameters: Params,
@@ -61,10 +62,14 @@ export default function (pi: ExtensionAPI) {
       try {
         let text: string;
         let details: any = {};
+        if (!ACTIONS.includes(params.action)) throw new Error(`action must be one of: ${ACTIONS.join(", ")}`);
+        if (params.action === "start" && !params.command) throw new Error("start requires command");
+        if ((params.action === "output" || params.action === "stop") && !params.id) throw new Error(`${params.action} requires id`);
         if (params.action === "start") {
           const job = await jobs.start({ ...params, signal });
           if (job.text !== undefined) {
             text = `Started ${job.id} · ${job.state}${job.waitTimedOut ? " · waitFor timed out; job remains running" : ""}${job.waitAborted ? " · wait aborted; job remains running" : ""}\n${job.text}`;
+            if (job.waitError) text += `\n${job.waitError}; wait skipped, job remains running`;
             if (job.waitTruncated) text += `\nStart output shortened; full log: ${job.logPath}`;
             details = { id: job.id, name: job.name, state: job.state, runtimeMs: job.runtimeMs, pid: job.pid, logPath: job.logPath };
           } else {
@@ -123,6 +128,8 @@ export default function (pi: ExtensionAPI) {
       deferredNotified = true;
     }
     await status(ctx);
+    try { reapStale(); } catch {}
+    if (statusTimer) clearInterval(statusTimer);
     statusTimer = setInterval(() => { if (latestCtx) void status(latestCtx); }, 1000);
     statusTimer.unref();
   });
