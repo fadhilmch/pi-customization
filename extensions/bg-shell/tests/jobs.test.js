@@ -118,6 +118,17 @@ test('exit notice is suppressed once output() has read a closed job, and signal 
   assert.ok(!notices.some((n) => /code SIGTERM/.test(n) || n.includes(read.id)));
 });
 
+test('a job that exits while its pid file is being written is still seen to exit', async (t) => {
+  // Slow pid-file write: the job exits and closes before start() resumes, so listeners must already be attached.
+  const slowFs = { ...fs, writeFile: async (...args) => { await new Promise((resolve) => setTimeout(resolve, 300)); return fs.writeFile(...args); } };
+  const f = await fixture({ fsApi: slowFs }); t.after(f.close);
+  const started = await f.jobs.start({ command: 'echo quick' });
+  await closed(f.jobs, started.id);
+  const out = await f.jobs.output(started.id);
+  assert.match(out.text, /quick/);
+  assert.equal((await f.jobs.list()).find((job) => job.id === started.id).state.startsWith('running'), false);
+});
+
 test('stop() suppresses the exit notice', async (t) => {
   const f = await fixture(); t.after(f.close);
   const started = await f.jobs.start({ command: 'sleep 30' });

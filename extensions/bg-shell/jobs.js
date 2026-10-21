@@ -51,10 +51,6 @@ function createJobs({ root, spawnProcess = spawn, fsApi = fs, now = Date.now, ma
         cwd: cwd || process.cwd(), detached: true,
         stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
       });
-      // Lets a later Pi process reap this job if Pi is killed without a clean shutdown.
-      if (child.pid && process.platform !== 'win32') {
-        await fsApi.writeFile(path.join(dir, `${id}.pid`), JSON.stringify({ pid: child.pid, ownerPid: process.pid, command }), { mode: 0o600 }).catch(() => {});
-      }
     } catch (error) { reservations--; throw error; }
     const job = { id, name: String(name || command).slice(0, 100), command, child, log, startedAt: now(), exitCode: null, signal: null, runtimeMs: 0, exitedSinceLook: false, stopPromise: null };
     jobs.set(id, job);
@@ -78,6 +74,11 @@ function createJobs({ root, spawnProcess = spawn, fsApi = fs, now = Date.now, ma
     child.once('close', () => {
       outputChain.finally(() => { job.closed = true; });
     });
+    // Listeners are attached before any await: a fast job can exit (and close) before the next tick.
+    // Lets a later Pi process reap this job if Pi is killed without a clean shutdown.
+    if (child.pid && process.platform !== 'win32') {
+      await fsApi.writeFile(path.join(dir, `${id}.pid`), JSON.stringify({ pid: child.pid, ownerPid: process.pid, command }), { mode: 0o600 }).catch(() => {});
+    }
     if (child.pid === undefined) {
       // spawn() reports ENOENT and similar failures asynchronously.
       await new Promise((resolve) => setImmediate(resolve));
@@ -143,6 +144,9 @@ function createJobs({ root, spawnProcess = spawn, fsApi = fs, now = Date.now, ma
     return job.stopPromise;
   }
 
+  // ESRCH: no such group. EPERM: macOS reports it for a group whose members are all zombies.
+  const gone = (e) => e.code === 'ESRCH' || e.code === 'EPERM';
+
   async function terminate(job, graceMs) {
     const pid = job.child.pid;
     if (pid) {
@@ -157,14 +161,14 @@ function createJobs({ root, spawnProcess = spawn, fsApi = fs, now = Date.now, ma
         clearTimeout(timer);
       } else {
         let groupExists = true;
-        try { process.kill(-pid, 0); } catch (e) { if (e.code === 'ESRCH') groupExists = false; else throw e; }
+        try { process.kill(-pid, 0); } catch (e) { if (gone(e)) groupExists = false; else throw e; }
         if (!groupExists) return info(job);
-        try { process.kill(-pid, 'SIGTERM'); } catch (e) { if (e.code !== 'ESRCH') throw e; }
+        try { process.kill(-pid, 'SIGTERM'); } catch (e) { if (!gone(e)) throw e; }
         let timer;
         await Promise.race([exited, new Promise((resolve) => { timer = setTimeout(resolve, graceMs); })]);
         clearTimeout(timer);
         // Kill the entire group even when its leader exited; grandchildren may still hold pipes open.
-        try { process.kill(-pid, 'SIGKILL'); } catch (e) { if (e.code !== 'ESRCH') throw e; }
+        try { process.kill(-pid, 'SIGKILL'); } catch (e) { if (!gone(e)) throw e; }
         let killTimer;
         await Promise.race([exited, new Promise((resolve) => { killTimer = setTimeout(resolve, 1000); })]);
         clearTimeout(killTimer);
