@@ -64,7 +64,20 @@ Each item can set `cwd`. A chain stops at the first failed step. If a step has n
 | `worker` | read, grep, find, ls, bash, edit, write | auto-mode + quality-on-write in the child, 6k-char report | One well-specified, independent piece of a plan |
 | `reviewer` | read, grep, find, ls, bash | auto-mode in the child, 8k-char report | One review of a finished diff |
 
-Every agent inherits your current model unless it names one, so they work with any provider. To make `scout` cheap, pin a small model for it in the config below.
+Every agent inherits your current model unless it names one, so they work with any provider. The thinking level is inherited too, unless the agent sets one or pins its own model (`scout` sets `low`). Inheriting means a `scout` costs as much per token as your main session. To make it cheap, pin a small model for it in `~/.pi/agent/subagent.json`:
+
+```json
+{ "models": { "scout": "anthropic/claude-haiku-4-5" } }
+```
+
+`/agents` shows the model each agent will use.
+
+### Cost
+
+- **Every turn:** the `subagent` tool definition (description plus the agent list) is about 640 tokens in the system prompt, whether or not it is used. Disable the extension if you never delegate.
+- **Per call:** each child pays its own startup (its system prompt, tool definitions, AGENTS.md/CLAUDE.md unless dropped) and everything it reads, billed to your provider like any other request. Only the capped report enters the main session, where it is re-sent on later turns.
+- **Parallel:** up to 3 children run at once and each bills separately, so 6 scouts cost about 6 times one scout. The shared budget keeps their combined reports to about twice `maxOutputChars` (12k characters, about 3k tokens, by default).
+- Each result row shows the child's own `↑input ↓output R(cache read) $cost`. `/cost` from the `usage-report` extension, if installed, adds the subagent spend to the session total.
 
 ### Guidelines: when a subagent saves tokens
 
@@ -130,7 +143,8 @@ Each call spawns `pi --mode json -p --no-session -ne -ns --no-mcp [--model] [--t
 - **Report contract.** Every child gets a short system-prompt addition: only your final message returns, keep it under N words, cite `path:line`, don't paste files. N comes from the output budget.
 - **Hard cap.** The report is truncated to the budget before it reaches the parent, with a note saying how much was cut.
 - **Usage.** Tool calls, tokens, cost and duration are collected per child and shown on the result rows (ctrl+o expands each task, its tool calls and the full report). They are kept in the tool details for the UI, not sent to the model.
-- **Safety.** A child inherits your environment and cwd. Risky commands in a `worker` or `reviewer` child hit auto-mode, which blocks anything that would need a confirmation (there is no UI to ask). The `PI_SUBAGENT_DEPTH` environment variable stops recursion. Ctrl+C kills running children.
+- **Safety.** A child inherits your environment, credentials and cwd, and runs without a sandbox. A `worker` can write anywhere your user can, and a `scout`'s `read` tool can read any file you can. Risky commands in a `worker` or `reviewer` child hit auto-mode, which blocks anything that would need a confirmation (there is no UI to ask); without the sibling `auto-mode` folder, nothing guards them. Project agents (`.pi/agents`) are repo-controlled prompts that can name tools and extension paths, so they load only in trusted projects (`/agents` says when they were skipped). Config is user-only for the same reason. The `PI_SUBAGENT_DEPTH` environment variable stops recursion: a child at the depth limit does not register the tool. Ctrl+C kills running children, and `timeoutMinutes` kills slow ones.
+- **Budget sharing.** A single call may return up to the smallest of the agent's `maxOutput`, `maxOutputChars`, and (in parallel mode) `max(1500, 2 * maxOutputChars / number of tasks)` characters.
 
 Files: `agents.js` (frontmatter, discovery), `config.js`, `args.js` (child command line), `run.js` (spawn and event parsing), `output.js` (caps, usage), `render.js`, `dispatch.js` (modes), `index.ts` (wiring). The tests in `tests/` run real child processes against a fake `pi`.
 
@@ -140,4 +154,6 @@ Files: `agents.js` (frontmatter, discovery), `config.js`, `args.js` (child comma
 - A child does not inherit your `/model` scoping, session or todo list, only what is in the task.
 - Parallel workers share one working tree. Nothing stops two of them from editing the same file.
 - The bundled agents inherit the parent model, so cost savings depend on pinning a cheaper model for `scout`.
-- Verified against Pi 1.3.0 with the demo provider (real child processes, a fake model). Rendering inside other tool-rendering extensions has not been checked.
+- The output cap is characters, not tokens, and truncation can cut a report mid-sentence. The child is asked to stay under a word limit, but that is a request, not a guarantee.
+- Parallel `worker` calls are not isolated from each other (no git worktrees).
+- Verified end to end against Pi 1.3.0 with the repo's fake demo provider (`demo/`): real child `pi` processes talking to a scripted model, including parallel runs and the recorded GIF. Not verified against a real model provider. Rendering inside other tool-rendering extensions has not been checked.
