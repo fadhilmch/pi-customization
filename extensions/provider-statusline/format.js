@@ -44,15 +44,16 @@ function formatClaudeLabel(raw) {
   return `${family} ${version}`;
 }
 
-function formatModelLabel(model) {
+function formatModelLabel(model, { symbol = true } = {}) {
   const kind = getProviderKind(model);
   const source = model?.name || model?.id || '';
-  const mark = { claude: '◉', codex: '✳', copilot: '✦', generic: '◆' }[kind];
-  if (kind === 'claude') return `${mark} Claude ${formatClaudeLabel(source)}`;
+  const glyph = { claude: '◉', codex: '✳', copilot: '✦', generic: '◆' }[kind];
+  const mark = symbol ? `${glyph} ` : '';
+  if (kind === 'claude') return `${mark}Claude ${formatClaudeLabel(source)}`;
   const pretty = prettifyModelId(source);
-  if (kind === 'codex') return `${mark} Codex ${pretty}`;
-  if (kind === 'copilot') return `${mark} Copilot ${pretty}`;
-  return `${mark} ${pretty}`;
+  if (kind === 'codex') return `${mark}Codex ${pretty}`;
+  if (kind === 'copilot') return `${mark}Copilot ${pretty}`;
+  return `${mark}${pretty}`;
 }
 
 function formatCountdown(resetAt, nowMs = Date.now()) {
@@ -68,15 +69,18 @@ function formatCountdown(resetAt, nowMs = Date.now()) {
   return `${minutes}m`;
 }
 
-function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, quota }) {
+function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, quota, show = {} }) {
   const kind = getProviderKind(model);
+  const { providerSymbol = true, contextBar = true, quota: showQuota = true, cost: showCost = true } = show;
   const items = [
-    { key: 'model', text: formatModelLabel(model) },
+    { key: 'model', text: formatModelLabel(model, { symbol: providerSymbol }) },
     { key: 'thinking', text: `⚡ ${thinkingLevel || 'off'}` },
-    { key: 'context', text: `🧠 Ctx ${makeBar(contextPct, 8)} ${roundPercent(contextPct)}%`, pct: roundPercent(contextPct) },
   ];
+  if (contextBar) {
+    items.push({ key: 'context', text: `🧠 Ctx ${makeBar(contextPct, 8)} ${roundPercent(contextPct)}%`, pct: roundPercent(contextPct) });
+  }
 
-  const hasQuota = quota && (Number.isFinite(quota.fiveHourPct) || Number.isFinite(quota.sevenDayPct) || quota.resetText);
+  const hasQuota = showQuota && quota && (Number.isFinite(quota.fiveHourPct) || Number.isFinite(quota.sevenDayPct) || quota.resetText);
   if ((kind === 'claude' || kind === 'codex') && hasQuota) {
     if (Number.isFinite(quota.fiveHourPct)) {
       items.push({
@@ -98,7 +102,7 @@ function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, 
     return items;
   }
 
-  if (sessionCostText) {
+  if (showCost && sessionCostText) {
     items.push({ key: 'cost', text: `💰 Cost ${sessionCostText}` });
   }
 

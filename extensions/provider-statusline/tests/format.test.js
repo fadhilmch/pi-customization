@@ -155,3 +155,37 @@ test('formats an open pull request for the secondary statusline', () => {
   assert.equal(formatPullRequestLabel(pullRequest), '↗ PR #42 Show branch metadata');
   assert.equal(normalizePullRequest({ number: 43, title: 'Closed', state: 'CLOSED' }), null);
 });
+
+test('segment toggles hide symbol, context bar, quota and cost', () => {
+  const model = { provider: 'anthropic', id: 'claude-opus-4-5' };
+  const quota = { fiveHourPct: 10, sevenDayPct: 20, resetText: '1d 1h' };
+  const keys = (show) => buildPrimaryItems({ model, thinkingLevel: 'high', contextPct: 5, sessionCostText: '$1.00', quota, show }).map((i) => i.key);
+
+  assert.deepEqual(keys({}), ['model', 'thinking', 'context', 'fiveHour', 'sevenDay', 'reset']);
+  assert.deepEqual(keys({ contextBar: false }), ['model', 'thinking', 'fiveHour', 'sevenDay', 'reset']);
+  assert.deepEqual(keys({ quota: false }), ['model', 'thinking', 'context', 'cost']);
+  assert.deepEqual(keys({ quota: false, cost: false }), ['model', 'thinking', 'context']);
+  assert.equal(formatModelLabel(model, { symbol: false }), 'Claude Opus 4.5');
+  assert.equal(formatModelLabel(model), '◉ Claude Opus 4.5');
+  assert.equal(formatModelLabel({ provider: 'openai-codex', id: 'gpt-5' }, { symbol: false }), 'Codex GPT-5');
+});
+
+test('refuses to send the Codex token to a non-https remote URL', () => {
+  const { isSafeUsageUrl } = require('../quota.js');
+  assert.equal(isSafeUsageUrl('https://chatgpt.com/backend-api/wham/usage'), true);
+  assert.equal(isSafeUsageUrl('http://127.0.0.1:8080/usage'), true);
+  assert.equal(isSafeUsageUrl('http://remote.example/usage'), false);
+  assert.equal(isSafeUsageUrl('not a url'), false);
+});
+
+test('async quota snapshot returns null when the JSON file is missing', async () => {
+  const { loadQuotaSnapshotAsync } = require('../quota.js');
+  const prev = process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE;
+  process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE = '/nonexistent/claude.json';
+  try {
+    assert.equal(await loadQuotaSnapshotAsync('claude'), null);
+  } finally {
+    if (prev === undefined) delete process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE;
+    else process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE = prev;
+  }
+});

@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFile, execFileSync } = require('node:child_process');
 const { formatCountdown } = require('./format.js');
 
 function readJsonFile(filePath) {
@@ -155,6 +155,8 @@ function normalizeCodexUsage(payload, nowMs = Date.now()) {
   };
 }
 
+const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
+
 function readCodexAuth() {
   const candidates = [
     process.env.PI_STATUSLINE_CODEX_AUTH_FILE,
@@ -180,12 +182,14 @@ function readCodexAuth() {
 async function loadCodexQuota(nowMs = Date.now()) {
   const auth = readCodexAuth();
   if (!auth) return null;
+  const url = process.env.PI_STATUSLINE_CODEX_USAGE_URL || CODEX_USAGE_URL;
+  if (!isSafeUsageUrl(url)) return null; // never send the token over plain http to a remote host
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(
-      process.env.PI_STATUSLINE_CODEX_USAGE_URL || 'https://chatgpt.com/backend-api/wham/usage',
+      url,
       {
         headers: {
           Authorization: `Bearer ${auth.accessToken}`,
@@ -206,16 +210,51 @@ async function loadCodexQuota(nowMs = Date.now()) {
   }
 }
 
-function loadQuotaSnapshot(kind, nowMs = Date.now()) {
+function isSafeUsageUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || (u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
+function quotaSources(kind) {
   const upper = kind.toUpperCase();
-  const command = process.env[`PI_STATUSLINE_${upper}_USAGE_CMD`];
-  const filePath = process.env[`PI_STATUSLINE_${upper}_USAGE_FILE`] || path.join(os.homedir(), '.pi', 'agent', 'provider-statusline', `${kind}.json`);
+  return {
+    command: process.env[`PI_STATUSLINE_${upper}_USAGE_CMD`],
+    filePath: process.env[`PI_STATUSLINE_${upper}_USAGE_FILE`] || path.join(os.homedir(), '.pi', 'agent', 'provider-statusline', `${kind}.json`),
+  };
+}
+
+// Non-blocking variant used by the footer: never stalls rendering on a slow command.
+function runJsonCommandAsync(command) {
+  if (!command) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    execFile('/bin/bash', ['-lc', command], { encoding: 'utf8', timeout: 5000 }, (error, stdout) => {
+      if (error) return resolve(null);
+      try { resolve(JSON.parse(stdout)); } catch { resolve(null); }
+    });
+  });
+}
+
+async function loadQuotaSnapshotAsync(kind, nowMs = Date.now()) {
+  const { command, filePath } = quotaSources(kind);
+  const payload = (await runJsonCommandAsync(command)) || readJsonFile(filePath);
+  return normalizeQuotaPayload(payload, nowMs);
+}
+
+function loadQuotaSnapshot(kind, nowMs = Date.now()) {
+  const { command, filePath } = quotaSources(kind);
   const payload = runJsonCommand(command) || readJsonFile(filePath);
   return normalizeQuotaPayload(payload, nowMs);
 }
 
 module.exports = {
   loadQuotaSnapshot,
+  loadQuotaSnapshotAsync,
+  isSafeUsageUrl,
+  readCodexAuth,
   normalizeHeaderQuota,
   loadCodexQuota,
   normalizeCodexUsage,
