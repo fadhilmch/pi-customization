@@ -26,14 +26,32 @@ function stripComment(raw) {
   return v.replace(/\s+#.*$/, '').trim();
 }
 
-// Scalars, "a, b" / "[a, b]" lists and "- item" block lists. Enough for agent files; not a YAML parser.
+// Keys whose values are free prose: " #" there is text ("see issue #12"), not a comment.
+const PROSE_KEYS = new Set(['description']);
+
+// Scalars, "a, b" / "[a, b]" lists, "- item" block lists and ">" / "|" block scalars. Enough for agent files; not a YAML parser.
 function parseFrontmatter(text) {
-  const src = String(text ?? '').replace(/^﻿/, '').replace(/\r\n/g, '\n');
-  const m = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(src);
+  const src = String(text ?? '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+  const m = /^---[ \t]*\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)/.exec(src);
   if (!m) return { data: {}, body: src };
   const data = {};
   let listKey = null;
-  for (const line of m[1].split('\n')) {
+  let block = null; // { key, fold, lines }
+  const endBlock = () => {
+    if (!block) return;
+    const lines = block.lines;
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    data[block.key] = block.fold ? lines.map((l) => l.trim()).filter(Boolean).join(' ') : lines.join('\n');
+    block = null;
+  };
+  for (const line of (m[1] ?? '').split('\n')) {
+    if (block) {
+      if (!line.trim() || /^\s/.test(line)) {
+        block.lines.push(block.fold ? line : line.replace(/^\s{1,2}/, ''));
+        continue;
+      }
+      endBlock();
+    }
     if (!line.trim() || line.trim().startsWith('#')) continue;
     const item = /^\s+-\s*(.*)$/.exec(line) || (listKey && /^-\s*(.*)$/.exec(line));
     if (item && listKey) {
@@ -49,9 +67,14 @@ function parseFrontmatter(text) {
       continue;
     }
     listKey = null;
-    const v = stripComment(raw);
+    if (/^[>|][+-]?$/.test(stripComment(raw))) {
+      block = { key, fold: raw.trim()[0] === '>', lines: [] };
+      continue;
+    }
+    const v = PROSE_KEYS.has(key) ? raw.trim() : stripComment(raw);
     data[key] = v.startsWith('[') && v.endsWith(']') ? v.slice(1, -1).split(',').map(unquote).filter(Boolean) : unquote(v);
   }
+  endBlock();
   return { data, body: src.slice(m[0].length) };
 }
 
@@ -67,7 +90,8 @@ function bool(v, fallback) {
 }
 
 function expandHome(p, home = os.homedir()) {
-  return p === '~' ? home : p.startsWith('~/') ? path.join(home, p.slice(2)) : p;
+  if (p === '~') return home;
+  return p.startsWith('~/') || p.startsWith(`~${path.sep}`) ? path.join(home, p.slice(2)) : p;
 }
 
 // One agent file -> config, or { error } when it cannot be used.

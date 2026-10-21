@@ -30,7 +30,7 @@ function resolveToolPath(p, cwd, home = os.homedir()) {
   let s = String(p || "");
   if (s.startsWith("@")) s = s.slice(1);
   if (s === "~") s = home;
-  else if (s.startsWith("~/")) s = path.join(home, s.slice(2));
+  else if (s.startsWith("~/") || s.startsWith("~" + path.sep)) s = path.join(home, s.slice(2));
   return path.resolve(cwd, s);
 }
 

@@ -94,11 +94,12 @@ function buildChildArgs(agent, task, { dispatch = {}, config = {}, configDir, ho
 }
 
 // How to start another Pi: reuse this runtime and script when we can see them, else "pi" from PATH.
-function piInvocation(args, { argv = process.argv, execPath = process.execPath, exists = fs.existsSync } = {}) {
+function piInvocation(args, { argv = process.argv, execPath = process.execPath, exists = fs.existsSync, platform = process.platform } = {}) {
   const script = argv[1];
   if (script && !script.startsWith('/$bunfs/') && exists(script)) return { command: execPath, args: [script, ...args] };
   if (!/^(node|bun)(\.exe)?$/i.test(path.basename(execPath))) return { command: execPath, args };
-  return { command: 'pi', args };
+  // npm installs a pi.cmd shim on Windows; runChild starts .cmd files through the shell.
+  return { command: platform === 'win32' ? 'pi.cmd' : 'pi', args };
 }
 
 module.exports = { EXTENSIONS_ROOT, contractPrompt, outputBudget, resolveExtension, resolvePath, buildChildArgs, piInvocation };

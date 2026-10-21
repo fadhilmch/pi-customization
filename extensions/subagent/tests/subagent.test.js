@@ -369,3 +369,154 @@ test('agents panel: effective model, sources, notes, fixed width', () => {
   assert.match(text, /~\/\.pi\/agent\/subagent\.json/);
   assert.match(agentsPanel({ agents: [] }, 40).map(stripAnsi).join('\n'), /No subagents found/);
 });
+
+// ---- review fixes ----
+
+test('readOnly session: only agents without write/edit/bash may run, nothing is spawned otherwise', async () => {
+  const calls = [];
+  const agentsList = [...AGENTS, { ...AGENTS[0], name: 'reviewer', tools: ['read', 'bash'] }, { ...AGENTS[0], name: 'editor', tools: ['read', 'edit'] }];
+  const opts = { agents: agentsList, config: CONFIG, cwd: '/w', env: {}, readOnly: true, run: fakeRun({}, calls), invocation: (a) => ({ command: 'pi', args: a }) };
+  // worker has an empty tool list = Pi's default tools (write, edit, bash)
+  let r = await dispatch.executeSubagent({ agent: 'worker', task: 'edit files' }, opts);
+  assert.equal(r.isError, true);
+  assert.match(r.content[0].text, /read-only.*"worker".*default tool set/);
+  for (const name of ['reviewer', 'editor']) {
+    r = await dispatch.executeSubagent({ agent: name, task: 't' }, opts);
+    assert.equal(r.isError, true, name);
+  }
+  // one risky item in a parallel or chain call refuses the whole call before anything starts
+  r = await dispatch.executeSubagent({ tasks: [{ agent: 'scout', task: 'a' }, { agent: 'worker', task: 'b' }] }, opts);
+  assert.equal(r.isError, true);
+  r = await dispatch.executeSubagent({ chain: [{ agent: 'scout', task: 'a' }, { agent: 'worker', task: 'b' }] }, opts);
+  assert.equal(r.isError, true);
+  assert.equal(calls.length, 0);
+  r = await dispatch.executeSubagent({ agent: 'scout', task: 'look' }, opts);
+  assert.equal(r.isError, undefined);
+  assert.equal(calls.length, 1);
+  // not read-only: the worker runs
+  r = await dispatch.executeSubagent({ agent: 'worker', task: 'x' }, { ...opts, readOnly: false });
+  assert.equal(r.isError, undefined);
+});
+
+test('output is capped by each agent\'s own maxOutput (single, chain last step, parallel)', async () => {
+  const long = 'z'.repeat(9000);
+  const opts = { agents: AGENTS, config: CONFIG, cwd: '/w', env: {}, invocation: (a) => ({ command: 'pi', args: a }) };
+  const runs = () => fakeRun({ scout: { output: long }, worker: { output: long } }, []);
+  let r = await dispatch.executeSubagent({ agent: 'worker', task: 't' }, { ...opts, run: runs() });
+  assert.ok(r.content[0].text.length < 3300, `single ${r.content[0].text.length}`);
+  assert.match(r.content[0].text, /truncated/);
+  r = await dispatch.executeSubagent({ chain: [{ agent: 'scout', task: 'a' }, { agent: 'worker', task: 'b' }] }, { ...opts, run: runs() });
+  assert.ok(r.content[0].text.length < 3300, `chain ${r.content[0].text.length}`);
+  r = await dispatch.executeSubagent({ tasks: [{ agent: 'scout', task: 'a' }, { agent: 'worker', task: 'b' }] }, { ...opts, run: runs() });
+  const worker = r.content[0].text.split('## 2. worker')[1];
+  assert.ok(worker.length < 3300, `parallel ${worker.length}`);
+  assert.match(worker, /truncated/);
+  const one = { ...run.createRun({ agent: 'a' }), status: 'done', output: 'q'.repeat(100), budget: 20 };
+  assert.equal(output.modelText('single', [one], { maxChars: 50 }).split('\n')[0].length, 20);
+});
+
+test('runChild: UTF-8 characters split across stdout chunks survive', async () => {
+  const script = `
+    const line = JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'caf\\u00e9 \\u4e16\\u754c \\u{1F600}' }], stopReason: 'stop' } }) + '\\n';
+    const buf = Buffer.from(line);
+    let at = 0;
+    for (let i = 0; i < buf.length; i++) if (buf[i] >= 0xC0) { at = i + 1; break; } // right after a lead byte
+    process.stdout.write(buf.subarray(0, at));
+    setTimeout(() => process.stdout.write(buf.subarray(at)), 60);
+  `;
+  const r = await run.runChild(run.createRun({ agent: 'x', task: 't' }), fakeChild(script));
+  assert.equal(r.status, 'done');
+  assert.equal(r.output, 'café 世界 \u{1F600}');
+});
+
+test('runChild: an already aborted signal never spawns', async () => {
+  const ac = new AbortController();
+  ac.abort();
+  let spawned = 0;
+  const r = await run.runChild(run.createRun({ agent: 'x', task: 't' }), { command: 'pi', args: [], signal: ac.signal, spawn: () => { spawned++; throw new Error('should not spawn'); } });
+  assert.equal(spawned, 0);
+  assert.equal(r.status, 'aborted');
+});
+
+test('executeSubagent: queued parallel tasks are not started after an abort', async () => {
+  const ac = new AbortController();
+  const calls = [];
+  const r = await dispatch.executeSubagent({ tasks: Array.from({ length: 6 }, (_, i) => ({ agent: 'scout', task: `t${i}` })) }, {
+    agents: AGENTS, config: { ...CONFIG, concurrency: 1 }, cwd: '/w', env: {}, signal: ac.signal, invocation: (a) => ({ command: 'pi', args: a }),
+    run: async (rr) => { calls.push(rr.task); ac.abort(); return run.finish(rr, { exitCode: 1, aborted: true }); },
+  });
+  assert.deepEqual(calls, ['t0'], 'only the first task started');
+  assert.equal(r.details.runs.length, 6);
+  assert.ok(r.details.runs.every((x) => x.status === 'aborted'));
+});
+
+test('runChild: nonexistent cwd gives a clear error', async () => {
+  const r = await run.runChild(run.createRun({ agent: 'x', task: 't' }), { ...fakeChild(EVENTS), cwd: path.join(os.tmpdir(), 'sa-does-not-exist-xyz') });
+  assert.equal(r.status, 'failed');
+  assert.match(r.errorMessage, /working directory does not exist/);
+});
+
+test('runChild: timeout message uses seconds under a minute', async () => {
+  const slow = fakeChild('setTimeout(() => {}, 60000);');
+  const r = await run.runChild(run.createRun({ agent: 'x', task: 't' }), { ...slow, timeoutMs: 1200 });
+  assert.equal(r.errorMessage, 'timed out after 1s');
+});
+
+test('runChild: abort kills the whole process group, not just the child', { skip: process.platform === 'win32' }, async () => {
+  const dir = tmp('sa-pg-');
+  const pidFile = path.join(dir, 'grandchild.pid');
+  const script = `
+    const { spawn } = require('node:child_process');
+    const g = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+    require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(g.pid));
+    setTimeout(() => {}, 60000);
+  `;
+  const ac = new AbortController();
+  const p = run.runChild(run.createRun({ agent: 'x', task: 't' }), { ...fakeChild(script), signal: ac.signal });
+  for (let i = 0; i < 100 && !fs.existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 30));
+  const pid = Number(fs.readFileSync(pidFile, 'utf8'));
+  ac.abort();
+  assert.equal((await p).status, 'aborted');
+  await new Promise((r) => setTimeout(r, 300));
+  let alive = true;
+  try { process.kill(pid, 0); } catch { alive = false; }
+  if (alive) process.kill(pid, 'SIGKILL');
+  assert.equal(alive, false, 'grandchild is gone');
+});
+
+test('runChild: settles after exit even if a grandchild keeps stdout open', { skip: process.platform === 'win32' }, async () => {
+  const script = `
+    const { spawn } = require('node:child_process');
+    spawn(process.execPath, ['-e', 'setTimeout(() => {}, 4000)'], { stdio: ['ignore', 'inherit', 'ignore'], detached: true }).unref();
+    process.stdout.write(JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }], stopReason: 'stop' } }) + '\\n');
+  `;
+  const t0 = Date.now();
+  const r = await run.runChild(run.createRun({ agent: 'x', task: 't' }), fakeChild(script));
+  assert.equal(r.status, 'done');
+  assert.equal(r.output, 'ok');
+  assert.ok(Date.now() - t0 < 2500, `settled in ${Date.now() - t0}ms`);
+});
+
+test('parseFrontmatter: prose descriptions keep " #", block scalars fold, empty frontmatter parses', () => {
+  const fm = agents.parseFrontmatter;
+  assert.equal(fm('---\nname: a\ndescription: Fixes issue #12 and PR #3\n---\n').data.description, 'Fixes issue #12 and PR #3');
+  assert.equal(fm('---\nmodel: a/b # note\n---\n').data.model, 'a/b');
+  const folded = fm('---\nname: a\ndescription: >\n  Looks up things\n  across many files.\n\n  Second para.\ntools: read\n---\nBody').data;
+  assert.equal(folded.description, 'Looks up things across many files. Second para.');
+  assert.equal(folded.tools, 'read');
+  const lit = fm('---\ndescription: |\n  line one\n  line two\n---\n').data;
+  assert.equal(lit.description, 'line one\nline two');
+  const empty = fm('---\n---\nBody here');
+  assert.deepEqual(empty.data, {});
+  assert.equal(empty.body, 'Body here');
+  assert.match(agents.parseAgent('---\n---\nBody', { filePath: 'x.md' }).error, /description/);
+  assert.equal(agents.parseAgent('---\nname: x\ndescription: See issue #7 first\n---\n').description, 'See issue #7 first');
+});
+
+test('expandHome handles the path separator; piInvocation uses pi.cmd on win32', () => {
+  assert.equal(agents.expandHome('~'), os.homedir());
+  assert.equal(agents.expandHome(`~${path.sep}x`, '/h'), path.join('/h', 'x'));
+  assert.equal(agents.expandHome('~/x', '/h'), path.join('/h', 'x'));
+  assert.equal(agents.expandHome('~x', '/h'), '~x');
+  assert.equal(args.piInvocation(['-p'], { argv: ['node'], execPath: 'node.exe', exists: () => false, platform: 'win32' }).command, 'pi.cmd');
+});

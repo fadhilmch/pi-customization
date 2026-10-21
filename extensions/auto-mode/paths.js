@@ -5,7 +5,7 @@ const path = require('node:path');
 
 function expandHome(p, home) {
   if (p === '~') return home;
-  if (p.startsWith('~/')) return path.join(home, p.slice(2));
+  if (p.startsWith('~/') || p.startsWith('~' + path.sep)) return path.join(home, p.slice(2));
   const m = /^(\$HOME|\$\{HOME\})(\/.*)?$/.exec(p);
   if (m) return path.join(home, m[2] || '');
   return p;
@@ -113,7 +113,7 @@ function globToRegExp(glob) {
 // Pattern forms: "/abs/**", "~/dir/*", "rel/dir/**" (matches at any depth), "*.pem" (any depth).
 function matchesGlob(abs, glob, home) {
   let g = glob;
-  if (g.startsWith('~/')) g = path.join(home, g.slice(2));
+  if (g.startsWith('~/') || g.startsWith('~' + path.sep)) g = path.join(home, g.slice(2));
   const target = norm(abs);
   if (!g.startsWith('/')) g = '**/' + g;
   const re = globToRegExp(norm(g));

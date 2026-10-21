@@ -1,10 +1,22 @@
 'use strict';
 // Runs one child `pi --mode json -p` and folds its event stream into a small result object.
+const fs = require('node:fs');
 const { spawn: nodeSpawn } = require('node:child_process');
 
 const MAX_TOOL_CALLS = 200; // kept for display; older ones are dropped
 const MAX_STDERR = 4000;
 const UPDATE_INTERVAL_MS = 150;
+const KILL_GRACE_MS = 3000; // SIGTERM -> SIGKILL
+const EXIT_GRACE_MS = 250; // after 'exit', how long to wait for 'close' (stdout flush) before settling
+
+function formatTimeout(ms) {
+  return ms < 60000 ? `${Math.max(1, Math.round(ms / 1000))}s` : `${Math.round(ms / 60000)} min`;
+}
+
+// cmd.exe needs its own quoting when a .cmd shim is started through a shell.
+function winQuote(arg) {
+  return `"${String(arg).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1').replace(/%/g, '%%')}"`;
+}
 
 function emptyUsage() {
   return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, contextTokens: 0 };
@@ -92,11 +104,22 @@ function finish(run, { exitCode, aborted = false, timedOut = false } = {}) {
 
 // Spawn the child and resolve with the finished run (never rejects).
 // opts: { command, args, cwd, env, signal, timeoutMs, onUpdate(run), spawn }
-function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdate, spawn = nodeSpawn } = {}) {
+function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdate, spawn = nodeSpawn, platform = process.platform } = {}) {
   return new Promise((resolve) => {
+    // Never start a child for a call that was already cancelled (queued parallel tasks, chain steps).
+    if (signal?.aborted) return resolve(finish(run, { exitCode: 1, aborted: true }));
+    if (cwd && !fs.existsSync(cwd)) {
+      run.errorMessage = `working directory does not exist: ${cwd}`;
+      return resolve(finish(run, { exitCode: 1 }));
+    }
+    const win = platform === 'win32';
+    const viaShell = win && /\.(cmd|bat)$/i.test(command);
+    const detached = !win; // own process group on POSIX, so abort and timeout reach grandchildren
     let proc;
     try {
-      proc = spawn(command, args, { cwd, env, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+      proc = viaShell
+        ? spawn(command, args.map(winQuote), { cwd, env, shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+        : spawn(command, args, { cwd, env, shell: false, detached, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     } catch (err) {
       run.errorMessage = `could not start pi: ${err.message}`;
       return resolve(finish(run, { exitCode: 1 }));
@@ -131,43 +154,54 @@ function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdat
       if (applyEvent(run, event)) emit(false);
     };
 
+    const signalTree = (sig) => {
+      try {
+        if (detached && proc.pid) process.kill(-proc.pid, sig);
+        else proc.kill(sig);
+      } catch {
+        try { proc.kill(sig); } catch { /* already gone */ }
+      }
+    };
+    let killTimer = null;
     const kill = () => {
-      if (proc.exitCode !== null || proc.signalCode !== null) return;
-      proc.kill('SIGTERM');
-      setTimeout(() => {
-        if (proc.exitCode === null && proc.signalCode === null) proc.kill('SIGKILL');
-      }, 3000).unref?.();
+      if (settled || killTimer) return;
+      signalTree('SIGTERM');
+      // Escalate even if the leader already exited: grandchildren may still hold the group.
+      killTimer = setTimeout(() => signalTree('SIGKILL'), KILL_GRACE_MS);
+      killTimer.unref?.();
     };
 
     const onAbort = () => {
       aborted = true;
       kill();
     };
-    if (signal) {
-      if (signal.aborted) onAbort();
-      else signal.addEventListener('abort', onAbort, { once: true });
-    }
-    const timer = timeoutMs > 0 ? setTimeout(() => { timedOut = true; run.errorMessage = `timed out after ${Math.round(timeoutMs / 60000)} min`; kill(); }, timeoutMs) : null;
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+    const timer = timeoutMs > 0 ? setTimeout(() => { timedOut = true; run.errorMessage = `timed out after ${formatTimeout(timeoutMs)}`; kill(); }, timeoutMs) : null;
     timer?.unref?.();
 
+    // Decode as a stream: a multi-byte character can be split across chunks.
+    proc.stdout.setEncoding?.('utf8');
+    proc.stderr.setEncoding?.('utf8');
     proc.stdout.on('data', (d) => {
-      buffer += d.toString();
+      buffer += d;
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
       for (const l of lines) processLine(l);
     });
     proc.stderr.on('data', (d) => {
-      if (run.stderr.length < MAX_STDERR) run.stderr = (run.stderr + d.toString()).slice(0, MAX_STDERR);
+      if (run.stderr.length < MAX_STDERR) run.stderr = (run.stderr + d).slice(0, MAX_STDERR);
     });
 
-    const done = (code) => {
+    let exitTimer = null;
+    const done = (code, sig) => {
       if (settled) return;
       settled = true;
       if (buffer.trim()) processLine(buffer);
       if (timer) clearTimeout(timer);
       if (pending) clearTimeout(pending);
+      if (exitTimer) clearTimeout(exitTimer);
       signal?.removeEventListener?.('abort', onAbort);
-      finish(run, { exitCode: code ?? (aborted || timedOut ? 1 : 0), aborted, timedOut });
+      finish(run, { exitCode: code ?? (aborted || timedOut || sig ? 1 : 0), aborted, timedOut });
       emit(true);
       resolve(run);
     };
@@ -175,7 +209,13 @@ function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdat
       run.errorMessage = run.errorMessage || `could not start pi: ${err.message}`;
       done(1);
     });
-    proc.on('close', (code) => done(code));
+    // 'close' waits for every stdio stream to end, which a surviving grandchild can hold open forever.
+    // So settle shortly after 'exit' even if 'close' never comes.
+    proc.on('exit', (code, sig) => {
+      exitTimer = setTimeout(() => { proc.stdout.destroy?.(); proc.stderr.destroy?.(); done(code, sig); }, EXIT_GRACE_MS);
+      exitTimer.unref?.();
+    });
+    proc.on('close', (code, sig) => done(code, sig));
   });
 }
 
