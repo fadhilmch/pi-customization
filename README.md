@@ -27,7 +27,23 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota or cost, cwd, git branch, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
 | [`vim-editor`](extensions/vim-editor/) | Modal Vim keys for the prompt editor. | [png](docs/media/vim-editor.png) |
 
-Prompt templates in [`prompts/`](prompts/): `/init` (generate or update `AGENTS.md`, using the `scout` subagent for recon when available), `/commit` (draft a message from the staged diff in the repo's log style and commit only after you approve), `/pr` (draft a PR title and description from the branch diff; it does not create the PR). They load with the whole package; to use one alone, copy the file into `~/.pi/agent/prompts/`.
+### Prompt templates
+
+Prompt templates are Markdown files that Pi turns into slash commands. Typing `/commit` sends the file's text to the model as your message, so a template is a saved instruction, not code. Three general ones live in [`prompts/`](prompts/) (the subagent ones, `/scout`, `/review` and `/orchestrate`, ship with [`subagent`](extensions/subagent/) because they need its tool):
+
+| Command | What it does | Example |
+|---|---|---|
+| `/init [focus]` | Writes or updates `AGENTS.md`: commands, layout, conventions, gotchas, under about 60 lines. Uses the `scout` subagent for recon when the `subagent` tool exists, otherwise reads files itself. Keeps hand-written rules in an existing file. Does not commit. | `/init focus on the test setup` |
+| `/commit [hint]` | Reads the staged diff and `git log`, drafts a message in the repo's own style, shows it, and runs `git commit` only after you approve. Stages nothing, never pushes or amends. | `/commit mention the config change` |
+| `/pr [base]` | Drafts a PR title and description from `BASE...HEAD`, following `.github/pull_request_template.md` if there is one. Does not push or run `gh pr create`. | `/pr develop` |
+
+How they work: each template is a numbered checklist for the model, with the stop points ("ask before committing", "do not push") written into it. `$@` is replaced by everything you typed after the command, and `/pr` uses `${1:-default}` for its first argument. Nothing is enforced by code. A model can ignore a template, so pair `/commit` with `auto-mode` if you want a hard stop before risky git commands.
+
+Cost: a template adds roughly 350 to 500 tokens to the turn it is used in, then the normal cost of the commands it runs. `/commit` and `/pr` read the whole diff, so a large diff is a large turn; `/pr` is told to read the stat first and delegate to `scout` when a large diff is involved. They add nothing to turns where you do not use them.
+
+Install: they load with the whole package. To use one alone, copy the file into `~/.pi/agent/prompts/`, for example `curl -fsSL https://raw.githubusercontent.com/fadhilmch/pi-customization/main/prompts/commit.md -o ~/.pi/agent/prompts/commit.md` (create the folder first). The filter example below uses `"prompts": []` to load none. Add your own by dropping a `.md` file with a `description` in the front matter into `prompts/`; `tests/prompts.test.js` checks the name does not collide with a Pi built-in command.
+
+Limits: the templates assume `git` (and, for `/pr`, a local base branch; they do not fetch). They were checked for loading and structure by tests, and their wording was written against the Pi docs; they have not been run end to end with a real model.
 
 Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`) and `midnight-aurora` (neon pink/teal/lime, in `themes/`).
 
