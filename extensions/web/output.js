@@ -4,8 +4,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { pickSection } = require('./extract.js');
 
+const tempDirs = new Set();
+
 async function saveFullText(text) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-web-fetch-'));
+  tempDirs.add(dir);
   const file = path.join(dir, 'full.md');
   await fs.writeFile(file, text, { encoding: 'utf8', mode: 0o600 });
   return file;
@@ -54,4 +57,11 @@ function formatError(error, maxChars = 12000) {
   return text.length <= limit ? text : text.slice(0, limit);
 }
 
-module.exports = { saveFullText, capText, formatResult, formatError };
+// Removes every temp dir created by this process; safe to call repeatedly.
+async function cleanupTempFiles() {
+  const dirs = [...tempDirs];
+  tempDirs.clear();
+  await Promise.all(dirs.map((dir) => fs.rm(dir, { recursive: true, force: true }).catch(() => {})));
+}
+
+module.exports = { cleanupTempFiles, saveFullText, capText, formatResult, formatError };

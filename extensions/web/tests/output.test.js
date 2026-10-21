@@ -37,3 +37,14 @@ test('capText hard-caps non-page output and saves its full contents', async () =
   assert.equal(fs.readFileSync(result.file, 'utf8'), value);
   fs.rmSync(require('node:path').dirname(result.file), { recursive: true, force: true });
 });
+
+test('cleanupTempFiles removes saved full-text directories and is idempotent', async () => {
+  const saved = await output.capText('z'.repeat(1000), 300);
+  const formatted = await output.formatResult({ url: 'https://x.test', text: 'y'.repeat(1000), elapsedMs: 0 }, { maxChars: 300 });
+  const second = formatted.text.match(/Truncated\. Full text: (.+)$/m)[1];
+  assert.ok(fs.existsSync(saved.file) && fs.existsSync(second));
+  await output.cleanupTempFiles();
+  assert.ok(!fs.existsSync(require('node:path').dirname(saved.file)));
+  assert.ok(!fs.existsSync(require('node:path').dirname(second)));
+  await output.cleanupTempFiles();
+});
