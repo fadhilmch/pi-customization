@@ -90,6 +90,10 @@ async function writeWorkTree(cwd, info) {
   try {
     try {
       await fs.promises.copyFile(info.indexPath, indexFile); // reuse stat cache so unchanged files are not rehashed
+      // Keep the original index mtime. Git rehashes "racily clean" entries (file mtime >= index mtime); a fresh
+      // mtime on the copy would make a same-size edit in the same second as the last index write look unchanged.
+      const st = await fs.promises.stat(info.indexPath);
+      await fs.promises.utimes(indexFile, st.atime, st.mtime);
     } catch {
       /* no index yet (fresh repo): start empty */
     }
