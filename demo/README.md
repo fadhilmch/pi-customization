@@ -51,6 +51,7 @@ No network is used.
 | `bg-shell` | `bg-shell.gif/png` | bg-shell, claude-look (starts a background job, opens `/jobs`, then stops it) |
 | `web` | `web.gif/png` | web, claude-look (fetches the public Microsoft Agent Framework overview; requires network access) |
 | `notebook` | `notebook.gif/png` | notebook, claude-look (reads the sample notebook and edits one cell) |
+| `output-diet` | `output-diet.gif/png` | output-diet, claude-look (a 2000-line log folded, a repeated read deduped, then `/diet`) |
 | `vim-editor` | `vim-editor.gif/png`, `vim-editor-insert.png` | provider-statusline (Vim editor lives here for now) |
 
 `notify` is not recorded (a macOS notification cannot be captured in the terminal). The `web` tape needs network access. The web search tool is absent unless a provider key is configured, so its keyed request is not recorded.

@@ -52,7 +52,7 @@ Fetched page text is untrusted data. The tool does not follow links in that text
 
 ## Cost
 
-Read prompt/tool size with `/context`. `web_search` adds no per-turn definition when its key is unset. A real Microsoft Agent Framework overview request returned 57,542 raw HTML characters through a plain request and 10,593 formatted characters through `web_fetch` (under the 12,000-character cap). The site negotiated `text/markdown`, so HTML conversion was covered by fixtures rather than this live measurement.
+`/context` estimated `web_fetch` at about 127 tokens and `web_search` at about 98 (characters divided by four). Pi's estimate covers names, descriptions, and parameter schemas; it does not include prompt snippets or guidelines. `web_search` adds no per-turn definition when its key is unset. A real Microsoft Agent Framework overview request returned 57,542 raw HTML characters through a plain request and 10,593 formatted characters through `web_fetch` (under the 12,000-character cap). The site negotiated `text/markdown`, so HTML conversion was covered by fixtures rather than this live measurement.
 
 ## Limits
 

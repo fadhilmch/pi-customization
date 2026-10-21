@@ -33,6 +33,10 @@ Set user-level `exposure` to `"deferred"` to discover `bash_bg` through `tool_se
 
 On macOS and Linux, commands run under `bash -c` in a detached process group. Output is appended to a private log and decoded incrementally, including UTF-8 characters split across reads. Large output uses the repository's `output-diet` folding helper to keep the beginning, errors, and tail, with a hard character cap. At most five jobs can be active. Session shutdown stops jobs and removes the temporary directory.
 
+## Cost
+
+`/context` estimated `bash_bg` at about 267 tokens (characters divided by four). Pi's estimate covers its name, description, and parameter schema; it does not include prompt snippets or guidelines.
+
 ## Limits
 
 The shell command has the same authority as the user's Pi process. Do not start untrusted commands. Windows termination uses `taskkill /T /F`; Windows behavior has not been tested. Job logs live only for the current Pi session.

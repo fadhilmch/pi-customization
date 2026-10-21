@@ -34,6 +34,10 @@ Set user-level `exposure` to `"deferred"` to discover `notebook_edit` through `t
 
 The `read` result hook reads the file from disk, so Pi's raw JSON truncation does not prevent rendering. `notebook_edit` queues its complete read-modify-write with Pi's `withFileMutationQueue`, preventing races with the built-in `write` and `edit`. Cell ids are generated for nbformat 4.5 or newer. The editor is inactive in projects without notebooks and activates when a tracked notebook is found or the first notebook is read.
 
+## Cost
+
+`/context` estimated `notebook_edit` at about 183 tokens (characters divided by four). Pi's estimate covers its name, description, and parameter schema; it does not include prompt snippets or guidelines. Its direct mode activates only in projects with notebooks; deferred mode uses `tool_search`.
+
 ## Limits
 
 Notebook source is prioritized over outputs. HTML display output is stripped to text only when no `text/plain` alternative exists. Oversized rendered content is saved in a mode-0600 temp file and removed at session shutdown. Real MLOps notebook size measurements and validation with Jupyter/VS Code are pending; automated fixtures cover the nbformat 4.4/4.5 boundary and output types.
