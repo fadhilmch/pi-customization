@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { mergeConfigs, parseConfig, loadConfig } = require('../config.js');
+const { mergeConfigs, parseConfig, loadConfig, agentDir } = require('../config.js');
 const { isAllowedUrl } = require('../guard.js');
 
 test('config clamps user values and defaults private access off with Brave first', () => {
@@ -49,4 +49,14 @@ test('disjoint project and user allowed domains create a deny-all policy', async
   assert.equal(cfg.denyAllDomains, true);
   assert.deepEqual(cfg.allowedDomains, []);
   await assert.rejects(isAllowedUrl('https://a.test', cfg, async () => [{ address: '203.0.113.3' }]), /No domains are allowed/);
+});
+
+test('agentDir expands ~ in PI_CODING_AGENT_DIR like the other extensions', () => {
+  assert.equal(agentDir({}, '/home/u'), '/home/u/.pi/agent');
+  assert.equal(agentDir({ PI_CODING_AGENT_DIR: '~' }, '/home/u'), '/home/u');
+  assert.equal(agentDir({ PI_CODING_AGENT_DIR: '~/pi-agent' }, '/home/u'), '/home/u/pi-agent');
+  assert.equal(agentDir({ PI_CODING_AGENT_DIR: '/abs/agent' }, '/home/u'), '/abs/agent');
+  const files = [];
+  loadConfig({ env: { PI_CODING_AGENT_DIR: '~/pi-agent' }, home: '/home/u', readFile: (file) => { files.push(file); throw Object.assign(new Error('x'), { code: 'ENOENT' }); } });
+  assert.deepEqual(files, ['/home/u/pi-agent/web.json']);
 });
