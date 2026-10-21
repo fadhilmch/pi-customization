@@ -4,7 +4,14 @@ import vimEditor from "./vim-editor.ts";
 
 const { buildPrimaryItems, formatWorkspacePath, getProviderKind } = require("./format.js");
 const { getSessionCostText } = require("./cost.js");
-const { loadQuotaSnapshot, normalizeHeaderQuota } = require("./quota.js");
+function loadFresh(relativePath: string) {
+  const modulePath = require.resolve(relativePath);
+  delete require.cache[modulePath];
+  return require(modulePath);
+}
+
+const { loadQuotaSnapshot, loadCodexQuota, normalizeHeaderQuota } = loadFresh("./quota.js");
+const { formatPullRequestLabel, loadPullRequest } = loadFresh("./git.js");
 const { registerHotkeysShortcut } = require("./shortcuts.js");
 
 const REFRESH_MS = 60_000;
@@ -50,6 +57,10 @@ function colorBranch(text: string): string {
   return fg256(76, text);
 }
 
+function colorPullRequest(text: string): string {
+  return fg256(213, text);
+}
+
 function getContextPct(ctx: ExtensionContext): number {
   const usage = ctx.getContextUsage();
   const max = ctx.model?.contextWindow ?? 0;
@@ -76,10 +87,13 @@ function makePrimaryLine(
   return items.map(colorPrimaryItem).join(` ${DIM}│${RESET} `);
 }
 
-function makeSecondaryLine(ctx: ExtensionContext, branch?: string): string {
+function makeSecondaryLine(ctx: ExtensionContext, branch?: string, pullRequest?: { number: number; title: string } | null): string {
   const pathText = colorPath(formatWorkspacePath(ctx.cwd));
-  if (!branch) return `⌂ ${pathText}`;
-  return `⌂ ${pathText} ${DIM}│${RESET} ⎇ ${colorBranch(branch)}`;
+  let line = `⌂ ${pathText}`;
+  if (branch) line += ` ${DIM}│${RESET} ⎇ ${colorBranch(branch)}`;
+  const pullRequestText = formatPullRequestLabel(pullRequest);
+  if (pullRequestText) line += ` ${DIM}│${RESET} ${colorPullRequest(pullRequestText)}`;
+  return line;
 }
 
 export default function providerStatusline(pi: ExtensionAPI) {
@@ -88,14 +102,34 @@ export default function providerStatusline(pi: ExtensionAPI) {
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   let requestRender: (() => void) | undefined;
   let responseQuota: ReturnType<typeof normalizeHeaderQuota> = null;
+  let pullRequest: { number: number; title: string; url?: string } | null = null;
+  let pullRequestRefresh = 0;
 
   const rerender = () => requestRender?.();
+
+  async function refreshQuota(ctx: ExtensionContext) {
+    if (getProviderKind(ctx.model) !== "codex") return;
+    responseQuota = await loadCodexQuota();
+    rerender();
+  }
+
+  async function refreshPullRequest(ctx: ExtensionContext) {
+    const refreshId = ++pullRequestRefresh;
+    const nextPullRequest = await loadPullRequest(ctx.cwd);
+    if (refreshId !== pullRequestRefresh) return;
+    pullRequest = nextPullRequest;
+    rerender();
+  }
 
   function mount(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
 
     ctx.ui.setFooter((tui, _theme, footerData) => {
-      const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
+      const unsubscribe = footerData.onBranchChange(() => {
+        pullRequest = null;
+        tui.requestRender();
+        void refreshPullRequest(ctx);
+      });
       requestRender = () => tui.requestRender();
 
       return {
@@ -109,25 +143,34 @@ export default function providerStatusline(pi: ExtensionAPI) {
         render(width: number) {
           const branch = footerData.getGitBranch?.();
           const line1 = truncateToWidth(makePrimaryLine(ctx, responseQuota), width);
-          const line2 = truncateToWidth(makeSecondaryLine(ctx, branch), width);
+          const line2 = truncateToWidth(makeSecondaryLine(ctx, branch, pullRequest), width);
           return [line1, line2];
         },
       };
     });
 
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(rerender, REFRESH_MS);
+    refreshTimer = setInterval(() => {
+      rerender();
+      void refreshQuota(ctx);
+      void refreshPullRequest(ctx);
+    }, REFRESH_MS);
   }
 
   function cleanup() {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = undefined;
     requestRender = undefined;
+    pullRequestRefresh++;
+    pullRequest = null;
   }
 
   pi.on("session_start", async (_event, ctx) => {
     responseQuota = null;
+    pullRequest = null;
     mount(ctx);
+    void refreshQuota(ctx);
+    void refreshPullRequest(ctx);
   });
 
   pi.on("after_provider_response", (event, ctx) => {
@@ -137,6 +180,8 @@ export default function providerStatusline(pi: ExtensionAPI) {
     if (quota) {
       responseQuota = quota;
       rerender();
+    } else if (kind === "codex" && !responseQuota) {
+      void refreshQuota(ctx);
     }
   });
 
@@ -145,9 +190,10 @@ export default function providerStatusline(pi: ExtensionAPI) {
     responseQuota = null;
   });
 
-  pi.on("model_select", async (_event, _ctx) => {
+  pi.on("model_select", async (_event, ctx) => {
     responseQuota = null;
     rerender();
+    void refreshQuota(ctx);
   });
 
   for (const eventName of ["model_select", "thinking_level_select", "turn_end", "message_end"] as const) {

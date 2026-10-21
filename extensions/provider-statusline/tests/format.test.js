@@ -93,6 +93,31 @@ test('normalizes provider response headers into session and weekly quota percent
   });
 });
 
+test('normalizes Codex WHAM usage windows into statusline quota percentages', () => {
+  const { normalizeCodexUsage } = require('../quota.js');
+  const now = Date.UTC(2026, 8, 22, 12, 0, 0);
+  const quota = normalizeCodexUsage({
+    rate_limit: {
+      primary_window: {
+        used_percent: 31,
+        limit_window_seconds: 18_000,
+        reset_at: Math.floor((now + 2 * 60 * 60) / 1000),
+      },
+      secondary_window: {
+        used_percent: 72,
+        limit_window_seconds: 604_800,
+        reset_at: Math.floor((now + ((24 + 14) * 60 * 60 + 12 * 60) * 1000) / 1000),
+      },
+    },
+  }, now);
+
+  assert.deepEqual(quota, {
+    fiveHourPct: 31,
+    sevenDayPct: 72,
+    resetText: '1d 14h',
+  });
+});
+
 test('uses cost for copilot instead of quota windows', () => {
   const items = buildPrimaryItems({
     model: { provider: 'github-copilot', id: 'gpt-5.4' },
@@ -111,4 +136,22 @@ test('uses cost for copilot instead of quota windows', () => {
     ['model', 'thinking', 'context', 'cost'],
   );
   assert.equal(items[3].text, '💰 Cost $0.48');
+});
+
+test('formats an open pull request for the secondary statusline', () => {
+  const { formatPullRequestLabel, normalizePullRequest } = require('../git.js');
+  const pullRequest = normalizePullRequest({
+    number: 42,
+    title: 'Show branch metadata',
+    url: 'https://github.com/example/repo/pull/42',
+    state: 'OPEN',
+  });
+
+  assert.deepEqual(pullRequest, {
+    number: 42,
+    title: 'Show branch metadata',
+    url: 'https://github.com/example/repo/pull/42',
+  });
+  assert.equal(formatPullRequestLabel(pullRequest), '↗ PR #42 Show branch metadata');
+  assert.equal(normalizePullRequest({ number: 43, title: 'Closed', state: 'CLOSED' }), null);
 });

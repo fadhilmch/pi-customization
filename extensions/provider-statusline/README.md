@@ -14,6 +14,7 @@ Top line:
 Bottom line:
 - current working directory
 - git branch
+- open pull request for the current branch, when `gh` can resolve one
 
 ## Auto-loading
 
@@ -28,9 +29,11 @@ Reload it with:
 /reload
 ```
 
+The extension resolves the current branch's pull request with `gh pr view` in the background and refreshes it every 60 seconds. If the directory is not a GitHub checkout, `gh` is unavailable, or the branch has no open pull request, the PR segment is omitted.
+
 ## Optional quota data for Claude/Codex
 
-Pi can use quota headers when a provider exposes them. For providers that do not expose them, this extension reads optional external JSON.
+Claude quota is read from provider response headers when available. Codex ChatGPT-plan quota is fetched from the authenticated WHAM usage endpoint used by Codex clients, then refreshed at startup and every 60 seconds. If either source is unavailable, the extension reads optional external JSON or a command.
 
 The displayed windows match the Claude Code convention: `5h` session usage and `7d` weekly usage.
 
@@ -71,6 +74,13 @@ You can also override the file path with:
 
 - `PI_STATUSLINE_CLAUDE_USAGE_FILE`
 - `PI_STATUSLINE_CODEX_USAGE_FILE`
+
+Codex OAuth credentials are discovered from `~/.pi/agent/auth.json`, `$CODEX_HOME/auth.json`, or `~/.codex/auth.json`. Optional overrides are:
+
+- `PI_STATUSLINE_CODEX_AUTH_FILE`
+- `PI_STATUSLINE_CODEX_USAGE_URL`
+
+The Codex usage endpoint is an internal ChatGPT backend endpoint and may change independently of Pi.
 
 ## Vim query editing
 

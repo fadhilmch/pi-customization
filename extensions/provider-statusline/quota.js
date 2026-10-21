@@ -86,6 +86,126 @@ function normalizeHeaderQuota(headers, nowMs = Date.now()) {
   };
 }
 
+function timestampToMs(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeCodexWindow(window, nowMs) {
+  if (!window || typeof window !== 'object') return null;
+
+  let usedPct = numberOrNull(window.used_percent ?? window.usedPercent);
+  if (!Number.isFinite(usedPct)) {
+    const percentLeft = numberOrNull(window.percent_left ?? window.percentLeft);
+    if (Number.isFinite(percentLeft)) usedPct = 100 - percentLeft;
+  }
+  if (Number.isFinite(usedPct)) usedPct = Math.max(0, Math.min(100, usedPct));
+
+  let resetAt = timestampToMs(window.reset_at ?? window.resetAt ?? window.reset_time_ms ?? window.resetTimeMs);
+  const resetAfter = numberOrNull(window.reset_after_seconds ?? window.resetAfterSeconds);
+  if (!Number.isFinite(resetAt) && Number.isFinite(resetAfter)) resetAt = nowMs + resetAfter * 1000;
+
+  const resetText = Number.isFinite(resetAt) ? formatCountdown(resetAt, nowMs) : '';
+  if (!Number.isFinite(usedPct) && !resetText) return null;
+  return {
+    usedPct: Number.isFinite(usedPct) ? usedPct : null,
+    resetText,
+    durationSeconds: numberOrNull(window.limit_window_seconds ?? window.limitWindowSeconds),
+  };
+}
+
+function normalizeCodexUsage(payload, nowMs = Date.now()) {
+  const rateLimit = payload?.rate_limit ?? payload?.rate_limits;
+  if (!rateLimit || typeof rateLimit !== 'object') return null;
+
+  const slots = { fiveHour: null, sevenDay: null };
+  const assign = (window, preferredSlot) => {
+    const normalized = normalizeCodexWindow(window, nowMs);
+    if (!normalized) return;
+    let slot = preferredSlot;
+    if (!slot) {
+      slot = Number.isFinite(normalized.durationSeconds) && normalized.durationSeconds >= 172800
+        ? 'sevenDay'
+        : 'fiveHour';
+    }
+    if (!slots[slot]) slots[slot] = normalized;
+  };
+
+  assign(rateLimit.five_hour, 'fiveHour');
+  assign(rateLimit.weekly, 'sevenDay');
+  assign(rateLimit.primary_window, null);
+  assign(rateLimit.secondary_window, null);
+  assign(rateLimit.primary, null);
+  assign(rateLimit.secondary, null);
+
+  if (!slots.fiveHour && !slots.sevenDay) return null;
+  const resetWindow = slots.sevenDay ?? slots.fiveHour;
+  return {
+    fiveHourPct: slots.fiveHour?.usedPct ?? null,
+    sevenDayPct: slots.sevenDay?.usedPct ?? null,
+    resetText: resetWindow?.resetText ?? '',
+  };
+}
+
+function readCodexAuth() {
+  const candidates = [
+    process.env.PI_STATUSLINE_CODEX_AUTH_FILE,
+    path.join(os.homedir(), '.pi', 'agent', 'auth.json'),
+    process.env.CODEX_HOME ? path.join(process.env.CODEX_HOME, 'auth.json') : null,
+    path.join(os.homedir(), '.codex', 'auth.json'),
+  ].filter(Boolean);
+
+  for (const filePath of candidates) {
+    const auth = readJsonFile(filePath);
+    const credentials = auth?.['openai-codex'] ?? auth?.tokens ?? auth;
+    const accessToken = credentials?.access ?? credentials?.access_token;
+    if (accessToken) {
+      return {
+        accessToken,
+        accountId: credentials.accountId ?? credentials.account_id,
+      };
+    }
+  }
+  return null;
+}
+
+async function loadCodexQuota(nowMs = Date.now()) {
+  const auth = readCodexAuth();
+  if (!auth) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(
+      process.env.PI_STATUSLINE_CODEX_USAGE_URL || 'https://chatgpt.com/backend-api/wham/usage',
+      {
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          Accept: 'application/json',
+          'ChatGPT-Account-Id': auth.accountId || '',
+          'OpenAI-Beta': 'codex-1',
+          originator: 'codex_cli_rs',
+        },
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok) return null;
+    return normalizeCodexUsage(await response.json(), nowMs);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function loadQuotaSnapshot(kind, nowMs = Date.now()) {
   const upper = kind.toUpperCase();
   const command = process.env[`PI_STATUSLINE_${upper}_USAGE_CMD`];
@@ -97,4 +217,6 @@ function loadQuotaSnapshot(kind, nowMs = Date.now()) {
 module.exports = {
   loadQuotaSnapshot,
   normalizeHeaderQuota,
+  loadCodexQuota,
+  normalizeCodexUsage,
 };
