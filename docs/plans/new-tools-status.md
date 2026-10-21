@@ -26,4 +26,4 @@ Implementation lives on `feat/new-tools` in worktree `/private/tmp/pi-customizat
 - Run real-model deferred discovery and calls for `subagent`, `web_fetch`, `web_search`, `bash_bg`, and `notebook_edit`; only `ask_user` has real-model coverage. Measure marginal discovery cost separately if needed.
 - Validate notebook open/save in Jupyter or VS Code and benchmark a representative MLOps notebook.
 - Record the visible UI tapes. VHS crashed with a runtime SIGSEGV in this environment, so no screenshots or GIFs are claimed.
-- Organize separate non-stacked tool branches/PRs from updated `main`; this integration branch is not a substitute for that delivery workflow.
+- This implementation is being submitted as one PR at the user's direction; that differs from the plan's requested one-PR-per-tool workflow.
