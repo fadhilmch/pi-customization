@@ -1,0 +1,38 @@
+{
+  "name": "@fadhilmch/pi-git-checkpoint",
+  "version": "0.1.0",
+  "description": "Rewind for Pi: snapshot the working tree before each prompt and restore with /rewind.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "git",
+    "checkpoint",
+    "rewind",
+    "undo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/git-checkpoint"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/git-checkpoint#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

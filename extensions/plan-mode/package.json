@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-plan-mode",
+  "version": "0.1.0",
+  "description": "Read-only plan mode for Pi: research first, approve a plan, then execute.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "plan-mode",
+    "planning"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/plan-mode"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/plan-mode#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

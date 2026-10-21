@@ -1,0 +1,43 @@
+{
+  "name": "@fadhilmch/pi-claude-look",
+  "version": "0.1.0",
+  "description": "Claude Code look for Pi: bullets, folded tool output, diff colours, spinner, welcome box, plus the claude-dark theme.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "claude-code",
+    "theme",
+    "ui",
+    "tui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/claude-look"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/claude-look#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "themes": [
+      "./themes/*.json"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "themes",
+    "scripts",
+    "README.md"
+  ]
+}

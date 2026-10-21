@@ -1,0 +1,36 @@
+{
+  "name": "@fadhilmch/pi-handoff",
+  "version": "0.1.0",
+  "description": "Start a fresh Pi session from a focused handoff prompt instead of lossy compaction.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "handoff",
+    "context"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/handoff"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/handoff#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

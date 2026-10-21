@@ -88,7 +88,7 @@ test('unhandled tools fall through', () => {
 });
 
 test('claude-dark theme has all required keys and no unknown ones', () => {
-  const root = path.join(__dirname, '..', '..', '..');
+  const root = path.join(__dirname, '..'); // theme lives in extensions/claude-look/themes
   const theme = JSON.parse(fs.readFileSync(path.join(root, 'themes', 'claude-dark.json'), 'utf8'));
   const schemaPath = path.join(process.env.HOME, '.pi/agent/install/releases/1.3.0/node_modules/@earendil-works/pi-coding-agent/schemas/theme.schema.json');
   if (!fs.existsSync(schemaPath)) return; // Pi not installed here

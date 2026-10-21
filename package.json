@@ -9,10 +9,21 @@
     "type": "git",
     "url": "git+https://github.com/fadhilmch/pi-customization.git"
   },
-  "keywords": ["pi-package", "pi", "pi-coding-agent", "extensions", "themes"],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "extensions",
+    "themes"
+  ],
   "pi": {
-    "extensions": ["./extensions/*/index.ts"],
-    "themes": ["./themes/*.json"]
+    "extensions": [
+      "./extensions/*/index.ts"
+    ],
+    "themes": [
+      "./themes/*.json",
+      "./extensions/*/themes/*.json"
+    ]
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
@@ -21,6 +32,13 @@
     "typebox": "*"
   },
   "scripts": {
-    "test": "node --test \"extensions/*/tests/*.test.js\""
+    "test": "node --test \"extensions/*/tests/*.test.js\" \"tests/*.test.js\""
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "engines": {
+    "node": ">=22.6"
   }
 }

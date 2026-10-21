@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-quality-on-write",
+  "version": "0.1.0",
+  "description": "Format and typecheck files Pi edits, and feed errors back to the model.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "formatter",
+    "typecheck",
+    "lint"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/quality-on-write"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/quality-on-write#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

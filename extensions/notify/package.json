@@ -1,0 +1,35 @@
+{
+  "name": "@fadhilmch/pi-notify",
+  "version": "0.1.0",
+  "description": "Desktop or terminal notification when Pi is waiting for you after a long run.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "notifications"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/notify"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/notify#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

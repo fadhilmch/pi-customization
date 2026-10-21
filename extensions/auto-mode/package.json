@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-auto-mode",
+  "version": "0.1.0",
+  "description": "Rule-based confirmation gate for Pi: safe tool calls run silently, risky ones ask, catastrophic ones are blocked.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "permissions",
+    "safety",
+    "auto-mode"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/auto-mode"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/auto-mode#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}
