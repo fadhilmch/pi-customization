@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - `subagent`: a `subagent` tool that runs single, parallel or chained tasks in separate `pi -p` processes, each with its own model, thinking level, tools, skills and extensions. Children start lean (no extensions, skills or MCP unless the agent asks), get a report-size contract, and their reports are capped before reaching the parent. Usage, cost and tool calls are shown per child. Bundled `scout`, `worker` and `reviewer` agents, user (`~/.pi/agent/agents`) and trusted-project (`.pi/agents`) agents, `/agents`, and `/orchestrate`, `/scout`, `/review` prompt templates. Config in `~/.pi/agent/subagent.json`.
+- `usage-report`: `/context` (estimated breakdown of the context window next to the provider's real size, with the biggest tool results) and `/cost` (tokens and cost per model on the current branch, plus subagent spend).
 - The root package now ships prompt templates (`extensions/*/prompts/*.md`).
 - Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus a `subagent` tape.
 
