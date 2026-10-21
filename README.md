@@ -20,6 +20,7 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`todo`](extensions/todo/) | A `todo` tool for multi-step work, shown above the editor as `☒ ◼ ☐`. `/todos`. | [png](docs/media/todo.png) |
 | [`subagent`](extensions/subagent/) | `subagent` tool: delegate read-heavy or parallel work to separate `pi` processes with their own model and tools; only a capped report comes back. Bundled `scout`/`worker`/`reviewer`, `/agents`, and `/orchestrate`, `/scout`, `/review` prompts. | [png](docs/media/subagent.png) |
 | [`usage-report`](extensions/usage-report/) | `/context` shows what fills the context window (system prompt, tools, messages, biggest tool results) to find token waste; `/cost` breaks down spend per model and subagent. | — (text output) |
+| [`quick-memory`](extensions/quick-memory/) | Type `# note` in the editor to append it to `AGENTS.md` (project or user) instead of sending it to the model. | — (editor shortcut) |
 | [`git-checkpoint`](extensions/git-checkpoint/) | Snapshots the working tree (including untracked files) before each prompt without touching your index, stash or branches. `/rewind`. | [png](docs/media/git-checkpoint.png) |
 | [`handoff`](extensions/handoff/) | Writes a focused prompt from the current session and starts a fresh one with it, instead of lossy compaction. `/handoff <goal>`. | [png](docs/media/handoff.png) |
 | [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you after a long run. | — (system notification) |
