@@ -351,3 +351,21 @@ test('executeSubagent: chain feeds reports forward and stops on failure', async 
   assert.equal(r.isError, true);
   assert.match(r.content[0].text, /Chain stopped at step 1 \(worker\)/);
 });
+
+test('agents panel: effective model, sources, notes, fixed width', () => {
+  const { agentsPanel } = require('../panel.js');
+  const { visibleWidth } = require('../ansi.js');
+  const list = agents.loadDir(agents.BUNDLED_DIR, 'bundled').agents.map((a) => agents.applyOverrides(a, { models: { scout: 'p/cheap' } }));
+  const data = { agents: list, errors: ['x.md: missing description'], projectSkipped: true, projectDir: '/r/.pi/agents', configFile: path.join(os.homedir(), '.pi/agent/subagent.json') };
+  const lines = agentsPanel(data, 90);
+  assert.ok(lines.every((l) => visibleWidth(l) === 84));
+  const text = lines.map(stripAnsi).join('\n');
+  assert.match(text, /■ scout\s+bundled\s+p\/cheap · thinking low/);
+  assert.match(text, /■ worker\s+bundled\s+inherits session model/);
+  assert.match(text, /loads auto-mode, quality-on-write/);
+  assert.doesNotMatch(text, /auto-mode\?/);
+  assert.match(text, /not loaded: the project is not trusted/);
+  assert.match(text, /! x\.md: missing description/);
+  assert.match(text, /~\/\.pi\/agent\/subagent\.json/);
+  assert.match(agentsPanel({ agents: [] }, 40).map(stripAnsi).join('\n'), /No subagents found/);
+});

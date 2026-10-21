@@ -95,7 +95,18 @@ function measureMessage(m) {
 
 function describeCall(call) {
   const a = call?.arguments || {};
-  const v = a.command ?? a.path ?? a.file_path ?? a.pattern ?? a.query ?? a.url ?? a.task ?? Object.values(a).find((x) => typeof x === 'string');
+  // subagent calls: "parallel: scout ×2", "chain: scout → worker", "scout: task"
+  if (Array.isArray(a.tasks) && a.tasks.length) {
+    const counts = new Map();
+    for (const t of a.tasks) counts.set(t?.agent || '?', (counts.get(t?.agent || '?') || 0) + 1);
+    return `parallel: ${[...counts].map(([n, c]) => (c > 1 ? `${n} ×${c}` : n)).join(', ')}`;
+  }
+  if (Array.isArray(a.chain) && a.chain.length) return `chain: ${a.chain.map((s) => s?.agent || '?').join(' → ')}`;
+  if (typeof a.agent === 'string' && typeof a.task === 'string') return clip(`${a.agent}: ${a.task}`);
+  return clip(a.command ?? a.path ?? a.file_path ?? a.pattern ?? a.query ?? a.url ?? a.task ?? Object.values(a).find((x) => typeof x === 'string'));
+}
+
+function clip(v) {
   const s = String(v ?? '').replace(/\s+/g, ' ').trim();
   return s.length > 50 ? `${s.slice(0, 49)}…` : s;
 }

@@ -11,7 +11,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `quick-memory`: a line starting with `# ` in the editor is saved as a bullet in the project or user `AGENTS.md` (asks which) instead of being sent to the model.
 - Root `prompts/` folder with `/init`, `/commit` and `/pr` prompt templates (shipped by the root package, `pi.prompts` now includes `./prompts/*.md`); `tests/prompts.test.js` validates every template.
 - The root package now ships prompt templates (`extensions/*/prompts/*.md`).
-- Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus a `subagent` tape.
+- `/context`, `/cost` and `/agents` open framed panels in the TUI (proportional window bar, per-category bars, cost split, cache-read share, effective agent models) instead of a plain-text notification; print/RPC mode keeps the text. `/context` names subagent calls in its biggest results (`subagent parallel: scout ×2`).
+- Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus `subagent` and `usage-report` tapes.
 
 ### Fixed
 
