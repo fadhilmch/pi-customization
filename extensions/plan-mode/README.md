@@ -33,7 +33,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-plan-mode`. See the [ro
 - Toggle: `/plan` (`/plan on|off`), shortcut `ctrl+alt+p`, or start with `--plan`. `shift+tab` is Pi's thinking-level cycle and `f1` is used by provider-statusline, so neither is taken.
 - While on: `write`/`edit` are removed from the active tools and blocked in `tool_call`; `bash` is allowed only for read-only commands (`bash.js`: per-command allowlist; rejects redirects, `$()`/backticks, `find -exec/-delete`, `sed -i`, `git commit/add/push/...`, `curl -o/-X/-d`, etc.; anything unknown is blocked).
 - Approval via `ctx.ui.select`: **Approve & auto-execute** (plan mode off, normal), **Approve & keep asking** (plan mode off, but each write/edit/non-read-only bash is confirmed until the run ends), **Keep planning** (optional feedback prompt; Esc also keeps planning).
-- Indicator: teal `⏸ plan mode on (ctrl+alt+p or /plan to exit)` widget above the editor, plus `setStatus("plan-mode", ...)`. provider-statusline's custom footer does not render extension statuses, so the widget is what you see.
+- Indicator: teal `⏸ plan mode on (ctrl+alt+p or /plan to exit)` widget above the editor, plus `setStatus("plan-mode", ...)`. The status also shows in Pi's default footer and in `provider-statusline`.
 - Mode persists as a `plan-mode` session entry (restored on start and `/tree`).
 
 ## Config

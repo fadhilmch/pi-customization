@@ -49,10 +49,8 @@ alone because Pi uses it for the thinking level. The mode is per session and not
 persisted; set the startup mode in the config (below).
 
 The mode is announced with `ctx.ui.setStatus("auto-mode", ...)` and a
-`ctx.ui.notify` on every change. Note: the custom footer in
-`extensions/provider-statusline` builds its own footer and does not render
-extension statuses, so the status line is invisible with that footer; the
-notification is what you see.
+`ctx.ui.notify` on every change. Pi's default footer and
+`provider-statusline` both show the status (e.g. `⏵⏵ auto mode`).
 
 ### Confirmation prompt
 
