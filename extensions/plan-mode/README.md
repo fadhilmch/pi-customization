@@ -34,7 +34,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-plan-mode`. See the [ro
 - While on: `write`/`edit` are removed from the active tools and blocked in `tool_call`; `bash` is allowed only for read-only commands (`bash.js`: per-command allowlist; rejects redirects, `$()`/backticks, `find -exec/-delete`, `sed -i`, `git commit/add/push/...`, `curl -o/-X/-d`, etc.; anything unknown is blocked).
 - Approval via `ctx.ui.select`: **Approve & auto-execute** (plan mode off, normal), **Approve & keep asking** (plan mode off, but each write/edit/non-read-only bash is confirmed until the run ends), **Keep planning** (optional feedback prompt; Esc also keeps planning).
 - Indicator: teal `⏸ plan mode on (ctrl+alt+p or /plan to exit)` widget above the editor, plus `setStatus("plan-mode", ...)`. The status also shows in Pi's default footer and in `provider-statusline`.
-- Mode persists as a `plan-mode` session entry (restored on start and `/tree`).
+- Mode persists as a `plan-mode` session entry (restored on start and `/tree`). Tools another extension activates (such as `tool_search`) or that you load while planning (such as a deferred `ask_user`) stay active, and are kept when plan mode ends. `write`, `edit` and `notebook_edit` are never active in plan mode, and `bash_bg` can only list, read and stop jobs, not start them.
 
 ## Config
 

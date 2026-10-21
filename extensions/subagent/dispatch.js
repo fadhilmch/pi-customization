@@ -23,7 +23,7 @@ function available(agents) {
 }
 
 // Tools that can change files or run arbitrary commands. An agent with no tool list gets Pi's defaults, which include them.
-const MUTATING_TOOLS = ['write', 'edit', 'bash'];
+const MUTATING_TOOLS = ['write', 'edit', 'bash', 'bash_bg', 'notebook_edit'];
 
 // A session without write/edit (plan mode, or any read-only setup) must not delegate to a child that can change things.
 function readOnlyViolation(agent) {
@@ -113,4 +113,4 @@ async function executeSubagent(params, opts) {
   return { content: [{ type: 'text', text }], details: { mode, runs: done }, isError: failed || undefined };
 }
 
-module.exports = { PREVIOUS, modeOf, chainTask, executeSubagent };
+module.exports = { PREVIOUS, modeOf, readOnlyViolation, chainTask, executeSubagent };

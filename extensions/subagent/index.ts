@@ -43,12 +43,23 @@ Project agents from .pi/agents load in trusted projects; /agents lists everythin
 export default function (pi: ExtensionAPI) {
   // Children start with -ne, so this normally never loads in one; the depth check covers configs that add it back.
   const { config: startConfig } = loadConfig();
+  let deferredNotified = false;
   if ((Number(process.env.PI_SUBAGENT_DEPTH) || 0) >= startConfig.maxDepth) return;
 
   const discover = (ctx: any) => discoverAgents({ cwd: ctx?.cwd, trusted: Boolean(ctx?.isProjectTrusted?.()) });
 
   pi.on("session_start", async (_event, ctx) => {
-    if (!ctx.hasUI) return;
+    if (startConfig.exposure === "deferred") {
+      const active: string[] = pi.getActiveTools();
+      const registered = pi.getAllTools?.().some((tool: any) => tool.name === "tool_search");
+      const fallback = registered ? "tool_search" : "subagent";
+      if (!active.includes(fallback)) pi.setActiveTools([...active, fallback]);
+      if (!deferredNotified && ctx?.hasUI) {
+        ctx.ui.notify(registered ? "subagent is deferred; tool_search was activated so it can still be discovered." : "tool_search is unavailable; subagent was activated directly.", "info");
+        deferredNotified = true;
+      }
+    }
+    if (!ctx?.hasUI) return;
     const { warning } = loadConfig();
     const { errors } = discover(ctx);
     for (const w of [warning, ...errors].filter(Boolean)) ctx.ui.notify(`subagent: ${w}`, "warning");
@@ -65,7 +76,9 @@ export default function (pi: ExtensionAPI) {
     ],
     parameters: Params,
     renderShell: "self",
-    exposure: "model-only",
+    // model-only: an orchestrating tool must not be callable from codemode scripts / ctx.executeTool.
+    // Config "direct" (the default) means declared to the model while active; "deferred" is found via tool_search.
+    exposure: startConfig.exposure === "deferred" ? "deferred" : "model-only",
 
     async execute(_toolCallId: string, params: any, signal: any, onUpdate: any, ctx: any) {
       const { config, file } = loadConfig();

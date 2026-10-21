@@ -126,7 +126,8 @@ System prompt for the agent. Say what to look for and how to format the report.
   "maxParallel": 6,
   "concurrency": 3,
   "timeoutMinutes": 20,
-  "maxDepth": 1
+  "maxDepth": 1,
+  "exposure": "direct"
 }
 ```
 
@@ -136,6 +137,8 @@ System prompt for the agent. Say what to look for and how to format the report.
 - `timeoutMinutes`: kills a child that runs too long (0 = no limit). `maxDepth`: how deep delegation may go. The default of 1 means a child cannot start its own subagents.
 
 There is deliberately no project-level config: it could add extensions to every child.
+
+`exposure` is `"direct"` (default) or `"deferred"`. `direct` registers `subagent` as Pi's `model-only` tool: declared to the model while active, never callable from codemode scripts or other tools (it orchestrates processes, so scripts should not start it). `deferred` hides it from the model until `tool_search` finds it; if `tool_search` is not installed, `subagent` is activated directly instead.
 
 ## How it works
 

@@ -1,7 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { decodeKittyPrintable, matchesKey } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
-
+const { Type } = require("typebox");
+const { loadConfig } = require("./config.js");
 const { runAsk } = require("./ask.js");
 const { createPicker } = require("./picker.js");
 const { formatCallLine, formatResult } = require("./render.js");
@@ -33,6 +32,7 @@ const DESCRIPTION =
   "Put the recommended option first and end its label with '(Recommended)'. Returns the user's answers.";
 
 export default function (pi: ExtensionAPI) {
+  const { exposure } = loadConfig();
   pi.registerTool({
     name: "ask_user",
     label: "AskUser",
@@ -42,10 +42,14 @@ export default function (pi: ExtensionAPI) {
       "Use ask_user only for decisions that are the user's to make and cannot be inferred from the code; batch all questions into one call, recommended option first.",
     ],
     parameters: Params,
+    // model-only: ask_user asks the human, so scripts (codemode / ctx.executeTool) must not call it.
+    // Config "direct" (the default) means declared to the model while active; "deferred" is found via tool_search.
+    exposure: exposure === "deferred" ? "deferred" : "model-only",
     renderShell: "self",
 
     async execute(_toolCallId: string, params: any, signal: any, _onUpdate: any, ctx: any) {
       const interactive = Boolean(ctx?.hasUI) && ctx?.mode === "tui";
+      const tuiKeys = interactive ? await import("@earendil-works/pi-tui") : undefined;
       return runAsk(params, {
         interactive,
         signal,
@@ -68,6 +72,8 @@ export default function (pi: ExtensionAPI) {
             });
             const handleInput = (data: string) => {
               const typing = picker.state().typing;
+              const matchesKey = tuiKeys!.matchesKey;
+              const decodeKittyPrintable = tuiKeys!.decodeKittyPrintable;
               const key = matchesKey(data, "escape")
                 ? "escape"
                 : matchesKey(data, "enter") || matchesKey(data, "return")
@@ -114,4 +120,17 @@ export default function (pi: ExtensionAPI) {
       );
     },
   });
+  if (exposure === "deferred") {
+    let notified = false;
+    pi.on("session_start", async (_event: any, ctx: any) => {
+      const active = pi.getActiveTools();
+      const registered = pi.getAllTools?.().some((tool: any) => tool.name === "tool_search");
+      const fallback = registered ? "tool_search" : "ask_user";
+      if (!active.includes(fallback)) pi.setActiveTools([...active, fallback]);
+      if (!notified && ctx?.hasUI) {
+        ctx.ui.notify(registered ? "ask_user is deferred; tool_search was activated so it can still be discovered." : "tool_search is unavailable; ask_user was activated directly.", "info");
+        notified = true;
+      }
+    });
+  }
 }

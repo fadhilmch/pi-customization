@@ -196,6 +196,25 @@ test('unknown / MCP tools: allowed in auto, ask in ask mode', () => {
   assert.equal(run('mcp__x__do_thing', { a: 1 }, { mode: 'ask' }).action, 'ask');
 });
 
+test('bash_bg start uses the bash safety classifier; read controls are allowed', () => {
+  assert.equal(run('bash_bg', { action: 'start', command: 'ls' }).action, 'allow');
+  assert.equal(run('bash_bg', { action: 'start', command: 'rm -rf build' }).action, 'ask');
+  assert.equal(run('bash_bg', { action: 'start', command: 'rm -rf ~' }).action, 'deny');
+  assert.equal(run('bash_bg', { action: 'output', id: 'bg1' }).action, 'allow');
+  assert.equal(run('bash_bg', { action: 'list' }).action, 'allow');
+});
+
+test('web network tools apply deny rules in every mode and ask mode confirms calls', () => {
+  const config = mergeConfigs({ deny: ['^web_fetch https://private\\.example', '^web_search secret'], allow: ['^web_fetch https://public\\.example'] }, null);
+  for (const mode of ['auto', 'ask', 'off']) {
+    assert.equal(run('web_fetch', { url: 'https://private.example' }, { config, mode }).action, 'deny');
+    assert.equal(run('web_search', { query: 'secret' }, { config, mode }).action, 'deny');
+  }
+  assert.equal(run('web_fetch', { url: 'https://public.example' }, { config, mode: 'ask' }).action, 'ask');
+  assert.equal(run('web_search', { query: 'public' }, { mode: 'ask' }).action, 'ask');
+  assert.equal(run('web_fetch', { url: 'https://public.example' }).action, 'allow');
+});
+
 // ---- modes ----
 test('ask mode confirms every bash/write/edit but not plain reads', () => {
   assert.equal(bash('ls', { mode: 'ask' }).action, 'ask');
