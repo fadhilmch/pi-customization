@@ -1,0 +1,39 @@
+{
+  "name": "@fadhilmch/pi-ask-user",
+  "version": "0.1.0",
+  "description": "ask_user tool for Pi: the model asks 1-4 structured multiple-choice questions in a TUI picker instead of guessing.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "ask-user",
+    "questions",
+    "askuserquestion"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/ask-user"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/ask-user#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}
