@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-usage-report",
+  "version": "0.1.0",
+  "description": "/context and /cost for Pi: see what fills the context window and what the session (and its subagents) cost.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "context",
+    "cost",
+    "tokens"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/usage-report"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/usage-report#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}
