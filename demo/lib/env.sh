@@ -40,7 +40,7 @@ cat > "$PI_CODING_AGENT_DIR/settings.json" <<EOF
   "defaultProvider": "demo",
   "defaultModel": "demo",
   "extensions": [$_exts],
-  "themes": ["$_demo_root/themes/claude-dark.json"]
+  "themes": ["$_demo_root/extensions/claude-look/themes/claude-dark.json"]
 }
 EOF
 # Pre-trust the sandbox project so no trust prompt appears.

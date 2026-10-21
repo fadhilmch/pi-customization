@@ -1,7 +1,7 @@
 {
   "name": "pi-customization",
   "version": "0.1.0",
-  "description": "Pi coding agent extensions and themes: Claude Code look, auto-mode permissions, plan mode, todos, rewind checkpoints, notifications and format/typecheck on write.",
+  "description": "Pi coding agent extensions and themes: Claude Code look, auto-mode permissions, plan mode, todos, subagents, rewind checkpoints, notifications and format/typecheck on write.",
   "private": true,
   "license": "MIT",
   "author": "Fadhil Mochammad",
@@ -19,6 +19,9 @@
   "pi": {
     "extensions": [
       "./extensions/*/index.ts"
+    ],
+    "prompts": [
+      "./extensions/*/prompts/*.md"
     ],
     "themes": [
       "./themes/*.json",
