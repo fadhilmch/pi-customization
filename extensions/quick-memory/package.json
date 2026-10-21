@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-quick-memory",
+  "version": "0.1.0",
+  "description": "Type \"# note\" in the Pi editor to append it to AGENTS.md (project or user) instead of sending it to the model.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "memory",
+    "agents-md",
+    "notes"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/quick-memory"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/quick-memory#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

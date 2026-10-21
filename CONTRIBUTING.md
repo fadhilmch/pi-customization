@@ -12,11 +12,12 @@ extensions/<name>/
   package.json    standalone package (@fadhilmch/pi-<name>) with a `pi` manifest
   README.md       Install / Usage / Config / How it works / Limits
 themes/           themes that belong to no single extension
+prompts/          prompt templates (/init, /commit, /pr) that belong to no single extension
 tests/            repo-wide tests (theme validation)
 docs/media/       gifs and screenshots used by the READMEs
 ```
 
-The root `package.json` is the whole-repo Pi package: `pi.extensions` is `./extensions/*/index.ts` and `pi.themes` covers `themes/` and `extensions/*/themes/`.
+The root `package.json` is the whole-repo Pi package: `pi.extensions` is `./extensions/*/index.ts` and `pi.themes` covers `themes/` and `extensions/*/themes/`, and `pi.prompts` covers `prompts/` and `extensions/*/prompts/`. A prompt template that needs a tool from one extension (like `/scout`) lives in that extension's `prompts/`; a general one lives in the root `prompts/`.
 
 ## Conventions
 
@@ -26,6 +27,7 @@ The root `package.json` is the whole-repo Pi package: `pi.extensions` is `./exte
 - Tests use `node:test` and `node:assert/strict`. Tests that load `index.ts` run it under `node --experimental-strip-types` (Node 22.6 or newer; CI uses Node 24).
 - Config files that a cloned repo can influence (`.pi/*.json`) may only tighten behaviour. Never let project config define commands to run or allow-list risky actions.
 - No new runtime dependencies without a strong reason.
+- Prompt templates are Markdown files with a `description` in the front matter; the file name is the command. Do not reuse a Pi built-in command name (`tests/prompts.test.js` checks the list) or another template's name. Use only the argument syntax Pi documents (`$1`, `$@`, `${@:-default}`).
 - Themes: a theme file is named after its `name` and must validate (`tests/themes.test.js`).
 
 ## Running tests
