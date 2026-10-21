@@ -1,11 +1,40 @@
 # auto-mode
 
-Claude Code style "auto mode" for Pi. The agent runs freely; only important or
-sensitive actions ask for confirmation. Pi by default runs `bash`, `write` and
-`edit` with no confirmation at all - this extension adds a deterministic,
-rule-based gate on every `tool_call` (no LLM call, no network).
+Claude Code style "auto mode" for Pi: safe tool calls run silently, risky ones ask, catastrophic ones are blocked.
 
-## Modes
+![auto-mode](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/auto-mode.gif)
+
+Pi by default runs `bash`, `write` and `edit` with no confirmation at all. This extension adds a deterministic, rule-based gate on every `tool_call` (no LLM call, no network). It is a guard, not a sandbox: see [Limits](#limits) and [SECURITY.md](../../SECURITY.md).
+
+## Install
+
+Only this tool, by copying its folder:
+
+```bash
+npx degit fadhilmch/pi-customization/extensions/auto-mode ~/.pi/agent/extensions/auto-mode
+```
+
+From the whole package, loading only this extension:
+
+```json
+{
+  "packages": [
+    {
+      "source": "git:github.com/fadhilmch/pi-customization",
+      "extensions": ["extensions/auto-mode/index.ts"],
+      "themes": []
+    }
+  ]
+}
+```
+
+From npm (once published): `pi install npm:@fadhilmch/pi-auto-mode`. See the [root README](../../README.md#install) for the other methods.
+
+## Usage
+
+Commands: `/auto`, `/auto auto|ask|off|status`, shortcut `ctrl+alt+a`.
+
+### Modes
 
 | Mode | Behaviour |
 | --- | --- |
@@ -25,7 +54,7 @@ The mode is announced with `ctx.ui.setStatus("auto-mode", ...)` and a
 extension statuses, so the status line is invisible with that footer; the
 notification is what you see.
 
-## Confirmation prompt
+### Confirmation prompt
 
 A risky call shows a select dialog with a short reason (for example
 `git push --force to main`) and the command, with options:
@@ -40,7 +69,7 @@ A risky call shows a select dialog with a short reason (for example
 Cancelling the dialog counts as Deny. With no UI (print/RPC mode) risky calls
 are blocked.
 
-## Rules (auto mode)
+### Rules (auto mode)
 
 Bash commands are split on `&&`, `||`, `;`, `|`, `&`, newlines, subshells, `$(...)`,
 backticks and `<(...)`; every part is classified and the call asks if any part
@@ -66,13 +95,13 @@ is risky. Wrappers (`sudo`, `env`, `time`, `nohup`, `timeout`, `xargs`,
 | Writes outside the project | redirections (`>`, `>>`, `&>`, `tee`) and `cp`/`mv`/`ln`/`install`/`rsync`/`touch`/`mkdir`/`sed -i`/`dd of=`/`curl -o` targets outside `ctx.cwd` (after resolving `~`, `..`, and symlinks) or built from unresolved variables |
 | Parse uncertainty | unbalanced quotes, `$'...'`, a command name from a variable or substitution, very long commands, and heredocs fed to anything but `cat`/`tee`/`git`/`gh`/`jq`-style tools |
 
-### Hard denials (every mode, including `off`)
+#### Hard denials (every mode, including `off`)
 
 `rm -rf` (recursive) of `/`, `~`, `$HOME`, `/*`, `~/*`, `/usr`, `/etc`, `/Users`...,
 `rm --no-preserve-root`, recursive `chmod`/`chown` of those, `mv` of those, `mkfs*`, `dd of=/dev/disk*`/`sd*`,
 redirects into block devices, `diskutil erase*`, fork bombs, plus your own `deny` regexes.
 
-### File tools
+#### File tools
 
 | Tool | Behaviour |
 | --- | --- |
@@ -102,7 +131,7 @@ Optional JSON, merged in this order: `~/.pi/agent/auto-mode.json` (user), `<cwd>
 
 Invalid JSON or regexes are skipped and reported as warnings at session start.
 
-### Security: project config can only be stricter
+### Project config can only be stricter
 
 A cloned repository can ship `.pi/auto-mode.json`, so it is untrusted. From the
 project file only `ask`, `deny` and `protectedPaths` are used. `allow` is
@@ -112,7 +141,15 @@ user-level file, or the `/auto` command, can loosen anything. Warnings tell you
 when project settings were ignored. Edits to `.pi/auto-mode.json` by the agent
 are themselves a confirmation-required write.
 
-## Limitations
+## How it works
+
+- `index.ts` - wires Pi: `tool_call` gate, `/auto` command, Ctrl+Alt+A shortcut, status.
+- `gate.js` - mode state, session allow-list, confirmation prompt.
+- `classify.js` - tool call -> `allow | ask | deny` decision.
+- `bash-rules.js`, `shell.js`, `paths.js`, `config.js` - rules, splitter, path/glob helpers, config merge.
+- `tests/` - `node --test extensions/auto-mode/tests/*.test.js`.
+
+## Limits
 
 - This is a regex/token-based heuristic, **not a sandbox**. A determined (or
   confused) model can bypass it: `python -c "shutil.rmtree(...)"`, `node -e`,
@@ -127,11 +164,3 @@ are themselves a confirmation-required write.
   (the project itself is considered "yours").
 - The session allow-list and the mode live in memory only.
 - For real isolation use a container/VM or Pi's sandbox example.
-
-## Files
-
-- `index.ts` - wires Pi: `tool_call` gate, `/auto` command, Ctrl+Alt+A shortcut, status.
-- `gate.js` - mode state, session allow-list, confirmation prompt.
-- `classify.js` - tool call -> `allow | ask | deny` decision.
-- `bash-rules.js`, `shell.js`, `paths.js`, `config.js` - rules, splitter, path/glob helpers, config merge.
-- `tests/` - `node --test extensions/auto-mode/tests/*.test.js`.

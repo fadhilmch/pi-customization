@@ -13,4 +13,4 @@ It is registered globally through `~/.pi/agent/settings.json` and can also be se
 
 ## Claude Dark
 
-`claude-dark.json` approximates the Claude Code palette: orange `#d77757` accent, neutral greys, lavender links/code, and terminal-default (`""`) tool backgrounds so tool output is not boxed. Pair it with `extensions/claude-look/` for the bullets, spinner and header. Tests validate the colour keys against Pi's theme schema.
+`extensions/claude-look/themes/claude-dark.json` (shipped with the claude-look extension, so a single-extension install brings its theme) approximates the Claude Code palette: orange `#d77757` accent, neutral greys, lavender links/code, and terminal-default (`""`) tool backgrounds so tool output is not boxed. Pair it with `extensions/claude-look/` for the bullets, spinner and header. Tests validate the colour keys against Pi's theme schema.
