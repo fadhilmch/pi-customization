@@ -6,10 +6,11 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { loadConfig } = require("./config.js");
 const { hasNotebook } = require("./activation.js");
-const { parseNotebook, serializeNotebook } = require("./nbio.js");
+const { parseDocument, serializeNotebook, spliceCell } = require("./nbio.js");
+const { resolvePath } = require("./paths.js");
 const { applyEdit, resolveCell } = require("./edit.js");
 const { capText, renderNotebookResult } = require("./output.js");
-const { renderCell } = require("./render.js");
+const { renderCell, notebookLanguage } = require("./render.js");
 
 const Cell = Type.Union([Type.Integer({ minimum: 0, description: "1-based cell number (0 inserts at the top)" }), Type.String({ description: "Cell id" })]);
 const Params = Type.Object({
@@ -20,13 +21,26 @@ const Params = Type.Object({
   cellType: Type.Optional(Type.Union([Type.Literal("code"), Type.Literal("markdown")])),
 });
 
+// Writes only the edited cell into the original text; falls back to full serialization if the splice does not reproduce the edit.
+function serializeEdited(doc: any, edited: any, mode: string, index: number): string {
+  const full = serializeNotebook(edited);
+  try {
+    const spliced = spliceCell(doc, { mode, index, cell: edited.cells[index] });
+    if (spliced !== undefined && serializeNotebook(parseDocument(spliced).nb) === full) return spliced;
+  } catch { /* use the full serialization */ }
+  return full;
+}
+
 export default function (pi: ExtensionAPI) {
   const tempDirs = new Set<string>();
+  const renderedFiles = new Map<string, any>();
   const startupConfig = loadConfig();
   let deferredNotified = false;
   const active = () => pi.getActiveTools();
   function activate() {
     const current = active();
+    // No write or edit among the active tools (plan mode, --tools read) means a read-only session: do not re-add a writer.
+    if (current.length > 0 && !current.includes("write") && !current.includes("edit")) return;
     if (!current.includes("notebook_edit")) pi.setActiveTools([...current, "notebook_edit"]);
   }
 
@@ -41,24 +55,25 @@ export default function (pi: ExtensionAPI) {
     renderShell: "self",
 
     async execute(_id: string, params: any, signal: any, _onUpdate: any, ctx: any) {
-      const file = path.resolve(ctx?.cwd || process.cwd(), params.path);
+      const file = resolvePath(params.path, ctx?.cwd || process.cwd());
       const cfg = loadConfig({ cwd: ctx?.cwd });
       if (!file.toLowerCase().endsWith(".ipynb")) return { content: [{ type: "text", text: "notebook_edit only accepts .ipynb files." }], details: { error: "invalid_extension" }, isError: true };
       try {
         return await withFileMutationQueue(file, async () => {
           if (signal?.aborted) throw new Error("Operation aborted");
           const original = await fs.readFile(file, "utf8");
-          const nb = parseNotebook(original);
+          const doc = parseDocument(original);
+          const nb = doc.nb;
           const index = resolveCell(nb.cells, params.cell, { insertion: params.mode === "insert" });
           const edited = applyEdit(nb, params);
           if (signal?.aborted) throw new Error("Operation aborted");
-          await fs.writeFile(file, serializeNotebook(edited), "utf8");
+          await fs.writeFile(file, doc.bom + serializeEdited(doc, edited, params.mode, index), "utf8");
           const cellNumber = index + 1;
           let text: string;
           if (params.mode === "delete") text = `Deleted cell ${cellNumber}.`;
           else {
-            const target = edited.cells[params.mode === "insert" ? index : index];
-            const language = edited.metadata?.kernelspec?.language || "python";
+            const target = edited.cells[index];
+            const language = notebookLanguage(edited);
             text = `${params.mode === "insert" ? "Inserted" : "Replaced"} cell ${cellNumber} (${target.cell_type})\n\n${renderCell(target, cellNumber, { language })}`;
           }
           const capped = await capText(text, cfg.maxChars);
@@ -86,34 +101,33 @@ export default function (pi: ExtensionAPI) {
       deferredNotified = true;
       return;
     }
-    if (hasNotebook(ctx?.cwd)) activate();
+    if (await hasNotebook(ctx?.cwd)) activate();
   });
 
   pi.on("tool_result", async (event: any, ctx: any) => {
     if (event.toolName !== "read" || event.isError || !String(event.input?.path || "").toLowerCase().endsWith(".ipynb")) return;
-    const file = path.resolve(ctx?.cwd || process.cwd(), event.input.path);
-    if (startupConfig.exposure === "direct") activate();
+    const file = resolvePath(String(event.input.path), ctx?.cwd || process.cwd());
     try {
-      const raw = await fs.readFile(file, "utf8");
-      const nb = parseNotebook(raw);
+      const stat = await fs.stat(file);
+      const nb = parseDocument(await fs.readFile(file, "utf8")).nb;
+      if (startupConfig.exposure === "direct") activate();
       const cfg = loadConfig({ cwd: ctx?.cwd });
       const from = Number.isInteger(event.input?.offset) ? event.input.offset : 1;
       const limit = Number.isInteger(event.input?.limit) ? event.input.limit : undefined;
-      const result = await renderNotebookResult(nb, { fileName: path.basename(file), from, limit, maxChars: cfg.maxChars });
+      const result = await renderNotebookResult(nb, { fileName: path.basename(file), from, limit, maxChars: cfg.maxChars, cache: renderedFiles, cacheKey: file, signature: `${stat.mtimeMs}:${stat.size}` });
       if (result.dir) tempDirs.add(result.dir);
       const replaced: any = { content: [{ type: "text", text: result.text }], details: { path: file, notebook: { cells: nb.cells.length, from, limit, truncated: result.truncated, fullOutputPath: result.file } } };
       if (Object.prototype.hasOwnProperty.call(event, "structuredContent")) replaced.structuredContent = undefined;
       return replaced;
-    } catch (error: any) {
-      const cfg = loadConfig({ cwd: ctx?.cwd });
-      const capped = await capText(`Notebook read failed: ${String(error?.message || error)}`, cfg.maxChars);
-      if (capped.dir) tempDirs.add(capped.dir);
-      return { content: [{ type: "text", text: capped.text }], details: { path: file, notebookError: capped.text, fullOutputPath: capped.file, truncated: capped.truncated }, isError: true };
+    } catch {
+      // Unreadable, malformed, empty or not nbformat 4: keep Pi's own read result.
+      return;
     }
   });
 
   pi.on("session_shutdown", async () => {
     await Promise.all([...tempDirs].map((dir) => fs.rm(dir, { recursive: true, force: true })));
     tempDirs.clear();
+    renderedFiles.clear();
   });
 }

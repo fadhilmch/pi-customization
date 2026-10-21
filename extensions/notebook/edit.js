@@ -10,7 +10,23 @@ function sourceLines(value) {
   return parts;
 }
 
-function clone(nb) { return JSON.parse(JSON.stringify(nb)); }
+// Structured copy that keeps verbatim numbers (RawNumber) intact.
+function clone(value) {
+  if (Array.isArray(value)) return value.map(clone);
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    const out = {};
+    for (const key of Object.keys(value)) Object.defineProperty(out, key, { value: clone(value[key]), enumerable: true, writable: true, configurable: true });
+    return out;
+  }
+  return value;
+}
+
+// Jupyter writes keys sorted (sort_keys=True), so new and modified cells follow suit.
+function sorted(cell) {
+  const out = {};
+  for (const key of Object.keys(cell).sort()) out[key] = cell[key];
+  return out;
+}
 
 function resolveCell(cells, cell, { insertion = false } = {}) {
   if (typeof cell === 'string') {
@@ -44,7 +60,7 @@ function applyEdit(input, { cell, mode, source, cellType } = {}) {
       do { id = crypto.randomBytes(4).toString('hex'); } while (nb.cells.some((entry) => entry.id === id));
       added.id = id;
     }
-    nb.cells.splice(index, 0, added);
+    nb.cells.splice(index, 0, sorted(added));
     return nb;
   }
   const target = nb.cells[index];
@@ -52,6 +68,7 @@ function applyEdit(input, { cell, mode, source, cellType } = {}) {
   target.source = sourceLines(source);
   if (target.cell_type === 'code') { target.outputs = []; target.execution_count = null; }
   else { delete target.outputs; delete target.execution_count; }
+  nb.cells[index] = sorted(target);
   return nb;
 }
 
