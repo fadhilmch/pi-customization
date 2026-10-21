@@ -48,9 +48,12 @@ No network is used.
 | `subagent` | `subagent.gif/png`, `subagent-running.png`, `subagent-expanded.png` | subagent, claude-look (children are real `pi -p` processes on the demo provider) |
 | `usage-report` | `usage-report.gif`, `usage-report-context.png`, `usage-report-cost.png`, `subagent-agents.png` | subagent, usage-report, claude-look (a subagent session, then `/context`, `/cost`, `/agents`) |
 | `ask-user` | `ask-user.gif/png`, `ask-user-picker.png` | ask-user, claude-look (answers one question, types an "Other" answer) |
+| `bg-shell` | `bg-shell.gif/png` | bg-shell, claude-look (starts a background job, opens `/jobs`, then stops it) |
+| `web` | `web.gif/png` | web, claude-look (fetches the public Microsoft Agent Framework overview; requires network access) |
+| `notebook` | `notebook.gif/png` | notebook, claude-look (reads the sample notebook and edits one cell) |
 | `vim-editor` | `vim-editor.gif/png`, `vim-editor-insert.png` | provider-statusline (Vim editor lives here for now) |
 
-`notify` is not recorded (a macOS notification cannot be captured in the terminal).
+`notify` is not recorded (a macOS notification cannot be captured in the terminal). The `web` tape needs network access. The web search tool is absent unless a provider key is configured, so its keyed request is not recorded.
 
 ## Caveats
 

@@ -16,6 +16,7 @@ const DEFAULTS = Object.freeze({
   concurrency: 3,
   timeoutMinutes: 20,
   maxDepth: 1, // children cannot delegate further
+  exposure: 'direct',
 });
 
 function int(v, fallback, min, max) {
@@ -45,6 +46,7 @@ function parseConfig(raw) {
     concurrency: int(raw.concurrency, DEFAULTS.concurrency, 1, 8),
     timeoutMinutes: int(raw.timeoutMinutes, DEFAULTS.timeoutMinutes, 0, 24 * 60),
     maxDepth: int(raw.maxDepth, DEFAULTS.maxDepth, 0, 3),
+    exposure: ['direct', 'deferred'].includes(raw.exposure) ? raw.exposure : DEFAULTS.exposure,
   };
 }
 

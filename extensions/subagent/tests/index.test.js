@@ -33,6 +33,8 @@ function fakePi(active) {
     registerCommand: (n, o) => { commands[n] = o; },
     on: (n, fn) => { (handlers[n] ||= []).push(fn); },
     getActiveTools: () => active.slice(),
+    getAllTools: () => Object.keys(tools).map((name) => ({ name })),
+    setActiveTools: (next) => { active.splice(0, active.length, ...next); },
   };
 }
 
@@ -48,6 +50,7 @@ test('subagent index: registers the tool and /agents, refuses risky agents when 
     loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
     assert.ok(pi.tools.subagent, 'subagent tool registered');
     assert.match(pi.tools.subagent.description, /scout/);
+    assert.ok(JSON.stringify([pi.tools.subagent.name, pi.tools.subagent.description, pi.tools.subagent.parameters, pi.tools.subagent.promptSnippet, pi.tools.subagent.promptGuidelines]).length / 4 < 350);
     assert.ok(pi.commands.agents, '/agents registered');
     assert.ok(pi.handlers.session_start);
 
@@ -74,4 +77,18 @@ test('subagent index: registers the tool and /agents, refuses risky agents when 
     if (prev === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = prev;
   }
+});
+
+test('subagent exposure is user-only and unavailable tool_search falls back to direct activation', { skip: !canStrip && 'needs Module.stripTypeScriptTypes' }, async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-exposure-'));
+  const prev = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = home;
+  t.after(() => { if (prev === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = prev; fs.rmSync(home, { recursive: true, force: true }); });
+  fs.writeFileSync(path.join(home, 'subagent.json'), JSON.stringify({ exposure: 'deferred' }));
+  const active = ['read']; const pi = fakePi(active);
+  loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
+  assert.equal(pi.tools.subagent.exposure, 'deferred');
+  await pi.handlers.session_start[0]({}, { hasUI: false });
+  assert.ok(active.includes('subagent'));
+  assert.ok(!active.includes('tool_search'));
 });

@@ -1,0 +1,13 @@
+{
+  "name": "@fadhilmch/pi-notebook",
+  "version": "0.1.0",
+  "description": "Render and edit Jupyter notebooks by cell in Pi",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi", "pi-coding-agent", "jupyter", "notebook"],
+  "repository": { "type": "git", "url": "git+https://github.com/fadhilmch/pi-customization.git", "directory": "extensions/notebook" },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/notebook#readme",
+  "bugs": { "url": "https://github.com/fadhilmch/pi-customization/issues" },
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "typebox": "*" },
+  "files": ["index.ts", "*.js", "README.md"]
+}

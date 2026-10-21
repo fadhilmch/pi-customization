@@ -1,0 +1,20 @@
+{
+  "name": "@fadhilmch/pi-web",
+  "version": "0.1.0",
+  "description": "Search the web and fetch pages as bounded Markdown tools for Pi",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi", "pi-coding-agent", "web", "search", "fetch"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/web"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/web#readme",
+  "bugs": { "url": "https://github.com/fadhilmch/pi-customization/issues" },
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "files": ["index.ts", "*.js", "providers/*.js", "README.md"]
+}

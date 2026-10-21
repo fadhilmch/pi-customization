@@ -70,13 +70,19 @@ Limits the tool enforces (with a clear error result when violated): 1-4 question
 
 ## Config
 
-None.
+Optional user config in `~/.pi/agent/ask-user.json`:
+
+```json
+{ "exposure": "direct" }
+```
+
+Set `exposure` to `"deferred"` to discover `ask_user` through `tool_search` when needed. The default is `direct`.
 
 ## How it works
 
 `validate.js` checks input, `picker.js` is a pure state machine plus line renderer (so it is unit-tested without a terminal), `answers.js` formats the compact result text, `render.js` draws the claude-look rows, `ask.js` ties them together with an injected picker, `index.ts` wires Pi (`ctx.ui.custom`, key mapping). `ansi.js` is a copy of the claude-look helpers.
 
-The tool definition (description, parameter schema, prompt snippet and guideline) is about 370 tokens (about 1,480 characters / 4), paid on every turn while the extension is loaded.
+The tool definition (description, parameter schema, prompt snippet and guideline) is paid on every active turn. Use `/context` to see its estimated size.
 
 Without an interactive TUI (`pi -p`, `--mode json`, `--mode rpc`, or `ctx.hasUI` false) the tool returns at once with a result telling the model the user cannot be asked and to proceed with the recommended option or a sensible default and state the assumption. It never waits.
 

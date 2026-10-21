@@ -117,7 +117,7 @@ test('index.ts registers /context and /cost and reports via notify', { skip: !ca
   mod.default({
     registerCommand: (n, o) => (commands[n] = o),
     getActiveTools: () => ['read'],
-    getAllTools: () => [{ name: 'read', description: 'd', parameters: {} }, { name: 'other', description: 'x', parameters: {} }],
+    getAllTools: () => [{ name: 'read', description: 'd', parameters: {} }, { name: 'other', description: 'x', parameters: {} }, { name: 'ask_user', description: 'deferred definition', parameters: {} }],
   });
   assert.ok(commands.context && commands.cost);
   const notes = [];
@@ -129,6 +129,7 @@ test('index.ts registers /context and /cost and reports via notify', { skip: !ca
   };
   await commands.context.handler('', ctx);
   assert.match(notes.at(-1)[0], /Tool definitions \(1\)/);
+  assert.doesNotMatch(notes.at(-1)[0], /ask_user|other/);
   await commands.cost.handler('', ctx);
   assert.match(notes.at(-1)[0], /No usage/);
 });
