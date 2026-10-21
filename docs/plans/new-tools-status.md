@@ -1,6 +1,6 @@
 # New tools implementation status
 
-Implementation lives on `feat/new-tools` in worktree `/private/tmp/pi-customization-web-fetch`. The output-diet prerequisite was merged to `origin/main` as `2542d1b`; the isolated branch has fetched it. Main in the original worktree was not edited. The implementation commit is `5f36a90`, following guard commit `9cb5262`.
+Implementation lives on `feat/new-tools` in worktree `/private/tmp/pi-customization-web-fetch`. The output-diet prerequisite was merged to `origin/main` as `2542d1b`; the isolated branch merged that prerequisite as `fb05696`. Main in the original worktree was not edited. Tool implementation is in `5f36a90`, following guard commit `9cb5262`; searchable-description regression fix is `e7433c1`.
 
 ## Implemented
 
@@ -12,7 +12,7 @@ Implementation lives on `feat/new-tools` in worktree `/private/tmp/pi-customizat
 
 ## Validated
 
-- Focused tests passed 122/122 after deferred config wiring. Subsequent index and definition-size tests passed 15/15. The final full `npm test` run is still required after merging the prerequisite.
+- Final full `npm test` passed 321/321 after merging the prerequisite.
 - Pi 1.3.0 offline RPC loaded the repo extensions and commands. With all five configs set to deferred, `/context` showed six active tools and omitted `ask_user`, `subagent`, `web_fetch`, `bash_bg`, and `notebook_edit`; each extension reported its fallback action.
 - A deterministic offline RPC spike used `tool_search` to load and call `ask_user`. It verifies runtime discovery, not model quality or token cost. The demo provider reports fixture usage, so no real-model `tool_search` round-trip cost is claimed.
 - Direct `/context` estimates (characters divided by four) were: `ask_user` 316, `subagent` 273, `bash_bg` 267, `notebook_edit` 183, `web_fetch` 127, `web_search` 98. These estimates include name, description, and parameter schema only; prompt snippets and guidelines are excluded.
@@ -22,7 +22,7 @@ Implementation lives on `feat/new-tools` in worktree `/private/tmp/pi-customizat
 
 ## Still pending
 
-- Run the final full `npm test` and final RPC load check after merging the current `origin/main` prerequisite.
+- A post-merge RPC load check was not repeated after the docs-only and description wording changes; the latest actual Pi 1.3.0 checks loaded the complete extension package before the prerequisite merge.
 - Test Brave or Tavily against a real API key; no key was used.
 - Test with a real model: deferred discovery/calls for each tool, `/context` reduction, and actual `tool_search` round-trip token cost.
 - Validate notebook open/save in Jupyter or VS Code and benchmark a representative MLOps notebook.
