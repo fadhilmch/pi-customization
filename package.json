@@ -21,6 +21,7 @@
       "./extensions/*/index.ts"
     ],
     "prompts": [
+      "./prompts/*.md",
       "./extensions/*/prompts/*.md"
     ],
     "themes": [

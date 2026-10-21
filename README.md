@@ -27,6 +27,8 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota or cost, cwd, git branch, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
 | [`vim-editor`](extensions/vim-editor/) | Modal Vim keys for the prompt editor. | [png](docs/media/vim-editor.png) |
 
+Prompt templates in [`prompts/`](prompts/): `/init` (generate or update `AGENTS.md`, using the `scout` subagent for recon when available), `/commit` (draft a message from the staged diff in the repo's log style and commit only after you approve), `/pr` (draft a PR title and description from the branch diff; it does not create the PR). They load with the whole package; to use one alone, copy the file into `~/.pi/agent/prompts/`.
+
 Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`) and `midnight-aurora` (neon pink/teal/lime, in `themes/`).
 
 ## Install
@@ -61,7 +63,8 @@ Pi's package filters choose which extensions load. Only auto-mode and todo, no t
     {
       "source": "git:github.com/fadhilmch/pi-customization",
       "extensions": ["extensions/auto-mode/index.ts", "extensions/todo/index.ts"],
-      "themes": []
+      "themes": [],
+      "prompts": []
     }
   ]
 }
