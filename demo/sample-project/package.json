@@ -1,0 +1,9 @@
+{
+  "name": "tinylib",
+  "version": "0.1.0",
+  "description": "Tiny string helpers (demo project for the pi-customization screenshots)",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test.js"
+  }
+}

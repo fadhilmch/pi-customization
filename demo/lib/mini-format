@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+// Demo stand-in for prettier (which is not installed offline): a deliberately tiny JS tidier, enough for the
+// sloppy snippet in demo/provider/scenarios/quality-on-write.js. Not a real formatter. Usage: mini-format <file>
+const fs = require("node:fs");
+const file = process.argv[2];
+const src = fs.readFileSync(file, "utf8");
+
+const tidy = (line) =>
+  line
+    .trim()
+    .replace(/'([^'"]*)'/g, '"$1"')
+    .replace(/\s+/g, " ")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .replace(/\)\s*\{/g, ") {")
+    .replace(/\b(\w+)=>/g, "($1) =>")
+    .replace(/\s*=>\s*/g, " => ")
+    .replace(/(\w|\))\+(\w)/g, "$1 + $2")
+    .replace(/(\w)=\{/g, "$1 = {")
+    .replace(/\.exports=/g, ".exports = ")
+    .replace(/\{(\w+)\}/g, "{ $1 }");
+
+let out = [];
+for (const raw of src.split("\n")) {
+  if (!raw.trim()) continue;
+  let line = tidy(raw);
+  if (line !== "}" && !/[{;,]$/.test(line)) line += ";";
+  if (line.startsWith("module.exports")) out.push("");
+  // Break long method chains at top-level ".call(" boundaries, one call per line.
+  if (line.length > 60 && /\)\.\w+\(/.test(line)) {
+    const parts = [];
+    let depthP = 0, start = 0;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === "(") depthP++;
+      else if (ch === ")") depthP--;
+      else if (ch === "." && depthP === 0 && /^\.\w+\(/.test(line.slice(i))) {
+        parts.push(line.slice(start, i));
+        start = i;
+      }
+    }
+    parts.push(line.slice(start));
+    line = parts.join("\n");
+  }
+  out.push(line);
+}
+
+// Indent by brace depth (chained calls get one extra level).
+let depth = 0;
+const lines = out.join("\n").split("\n").map((l) => {
+  if (!l) return l;
+  if (l.startsWith("}")) depth--;
+  const pad = "  ".repeat(Math.max(0, depth) + (l.startsWith(".") ? 1 : 0));
+  if (l.endsWith("{")) depth++;
+  return pad + l;
+});
+fs.writeFileSync(file, lines.join("\n") + "\n");
