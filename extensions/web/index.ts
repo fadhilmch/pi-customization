@@ -3,7 +3,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 const { Type } = require("typebox");
 const { loadConfig } = require("./config.js");
 const { fetchPage, clearCache } = require("./fetch.js");
-const { formatResult, formatError, capText } = require("./output.js");
+const { formatResult, formatError, capText, cleanupTempFiles } = require("./output.js");
 const { callLine, resultLine } = require("./render.js");
 const { search: searchWeb } = require("./search.js");
 
@@ -131,5 +131,5 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  pi.on("session_shutdown", async () => clearCache());
+  pi.on("session_shutdown", async () => { clearCache(); await cleanupTempFiles(); });
 }

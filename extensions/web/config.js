@@ -68,7 +68,8 @@ function mergeConfigs(userRaw, projectRaw) {
 }
 
 function agentDir(env = process.env, home = os.homedir()) {
-  return env.PI_CODING_AGENT_DIR || path.join(home, '.pi', 'agent');
+  const dir = env.PI_CODING_AGENT_DIR;
+  return !dir ? path.join(home, '.pi', 'agent') : dir === '~' ? home : dir.startsWith('~/') ? path.join(home, dir.slice(2)) : dir;
 }
 
 function readJson(file, readFile, warnings) {
@@ -88,4 +89,4 @@ function loadConfig({ cwd, env = process.env, home, readFile = fs.readFileSync }
   return { config: mergeConfigs(user, project), warnings, userFile, projectFile };
 }
 
-module.exports = { DEFAULTS, parseConfig, mergeConfigs, loadConfig, narrowAllowed };
+module.exports = { DEFAULTS, agentDir, parseConfig, mergeConfigs, loadConfig, narrowAllowed };

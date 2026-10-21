@@ -52,6 +52,9 @@ test('web extension registers a bounded untrusted read-only tool and setup comma
     await commands.web.handler('', { cwd: dir, ui: { notify: (message) => messages.push(message) } });
     assert.match(messages[0], /set BRAVE_API_KEY to enable it/);
     assert.equal(handlers.session_shutdown.length, 1);
+    const saved = await require('../output.js').capText('q'.repeat(600), 300);
+    await handlers.session_shutdown[0]();
+    assert.equal(fs.existsSync(saved.file), false, 'session_shutdown removes saved full-text files');
   } finally {
     if (envBefore === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = envBefore;
