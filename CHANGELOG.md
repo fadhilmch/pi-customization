@@ -13,6 +13,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - The root package now ships prompt templates (`extensions/*/prompts/*.md`).
 - `/context`, `/cost` and `/agents` open framed panels in the TUI (proportional window bar, per-category bars, cost split, cache-read share, effective agent models) instead of a plain-text notification; print/RPC mode keeps the text. `/context` names subagent calls in its biggest results (`subagent parallel: scout ×2`).
 - Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus `subagent` and `usage-report` tapes.
+- `output-diet`: folds long `bash` results to head, error lines and tail (full output saved to a 0600 temp file, or Pi's own `full_output_path`), replaces repeated identical `read`s with a short note, and `/diet` shows the estimated tokens saved. Config in `~/.pi/agent/output-diet.json`; a project `.pi/output-diet.json` can only tighten. Demo scenario and tape included.
 
 ### Fixed
 
