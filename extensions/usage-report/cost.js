@@ -3,13 +3,13 @@
 const { fmt } = require('./context.js');
 
 const emptyU = () => ({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 });
-const add = (t, u, cost) => {
+const add = (t, u, cost, countTurn = true) => {
   t.input += u.input || 0;
   t.output += u.output || 0;
   t.cacheRead += u.cacheRead || 0;
   t.cacheWrite += u.cacheWrite || 0;
   t.cost += cost || 0;
-  t.turns++;
+  if (countTurn) t.turns++;
 };
 
 // Walks the whole branch (compaction does not erase spend already made).
@@ -17,10 +17,19 @@ function aggregate(branch) {
   const models = new Map();
   const subagents = new Map();
   for (const e of branch) {
-    if (e.type === 'compaction' && e.usage) {
-      const t = models.get('(compaction)') || emptyU();
+    if ((e.type === 'compaction' || e.type === 'branch_summary') && e.usage) {
+      const key = e.type === 'compaction' ? '(compaction)' : '(branch summary)';
+      const t = models.get(key) || emptyU();
       add(t, e.usage, e.usage.cost?.total);
-      models.set('(compaction)', t);
+      models.set(key, t);
+      continue;
+    }
+    if (e.type === 'usage' && e.usage) {
+      // Out-of-band spend such as a cache warm-up: billed to its model, but not a conversation turn.
+      const key = e.provider && e.model ? `${e.provider}/${e.model}` : e.model || `(${e.kind || 'usage'})`;
+      const t = models.get(key) || emptyU();
+      add(t, e.usage, e.usage.cost?.total, false);
+      models.set(key, t);
       continue;
     }
     if (e.type !== 'message') continue;

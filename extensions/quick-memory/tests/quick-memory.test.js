@@ -97,3 +97,30 @@ test('index.ts input handler saves to the chosen file and handles/continues corr
   delete process.env.PI_CODING_AGENT_DIR;
   fs.rmSync(dir, { recursive: true });
 });
+
+test('memoryFile picks the file Pi loads: first existing candidate, AGENTS.md only when none exists', () => {
+  const { memoryFile, CANDIDATES } = require('../memory.js');
+  assert.deepEqual(CANDIDATES, ['AGENTS.override.md', 'AGENTS.md', 'AGENTS.MD', 'CLAUDE.md', 'CLAUDE.MD']);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-cand-'));
+  assert.equal(memoryFile(dir), path.join(dir, 'AGENTS.md'), 'nothing exists: default');
+  fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# rules\n');
+  assert.equal(memoryFile(dir), path.join(dir, 'CLAUDE.md'), 'a lone CLAUDE.md must not be shadowed by a new AGENTS.md');
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '');
+  assert.equal(memoryFile(dir), path.join(dir, 'AGENTS.md'));
+  fs.writeFileSync(path.join(dir, 'AGENTS.override.md'), '');
+  assert.equal(memoryFile(dir), path.join(dir, 'AGENTS.override.md'));
+  // a directory with a candidate's name is not a file Pi loads
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-cand-'));
+  fs.mkdirSync(path.join(dir2, 'AGENTS.md'));
+  assert.equal(memoryFile(dir2), path.join(dir2, 'AGENTS.md'));
+  assert.equal(memoryFile(dir2, (p) => p.endsWith('CLAUDE.MD')), path.join(dir2, 'CLAUDE.MD'));
+  // user-level file follows the same rule
+  const agent = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-agent-'));
+  fs.writeFileSync(path.join(agent, 'CLAUDE.md'), 'x\n');
+  assert.equal(userFile({ PI_CODING_AGENT_DIR: agent }, '/h'), path.join(agent, 'CLAUDE.md'));
+  assert.equal(projectFile(dir), path.join(dir, 'AGENTS.override.md'));
+  // the note lands in the existing file, appended
+  saveNote(userFile({ PI_CODING_AGENT_DIR: agent }), 'be terse', fs);
+  assert.equal(fs.readFileSync(path.join(agent, 'CLAUDE.md'), 'utf8'), 'x\n\n- be terse\n');
+  assert.ok(!fs.existsSync(path.join(agent, 'AGENTS.md')));
+});

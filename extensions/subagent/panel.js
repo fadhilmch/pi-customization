@@ -2,12 +2,13 @@
 // /agents panel: one block per agent (effective model, thinking, tools, description) in a rounded frame.
 // Pure: (data, width) -> string[]. The frame and wrap helpers are copied from usage-report/panel.js.
 const os = require('node:os');
+const path = require('node:path');
 const { COLORS, fg, bold, dim, visibleWidth, truncate } = require('./ansi.js');
 
 const MAX_WIDTH = 84;
 const SOURCE_COLORS = { bundled: COLORS.muted, user: COLORS.accent, project: '#e5a550' };
 
-const tilde = (p, home = os.homedir()) => (p && p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p);
+const tilde = (p, home = os.homedir()) => (p && p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p);
 const pad = (s, w) => s + ' '.repeat(Math.max(0, w - visibleWidth(s)));
 
 function wrap(text, width) {

@@ -70,12 +70,17 @@ export default function (pi: ExtensionAPI) {
     async execute(_toolCallId: string, params: any, signal: any, onUpdate: any, ctx: any) {
       const { config, file } = loadConfig();
       const { agents } = discover(ctx);
+      // No write/edit among the parent's active tools (plan mode, --tools read, ...) means a read-only session:
+      // a child with write, edit or bash would be a way around it.
+      const active: string[] = typeof pi.getActiveTools === "function" ? pi.getActiveTools() : [];
+      const readOnly = active.length > 0 && !active.includes("write") && !active.includes("edit");
       const model = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined;
       return executeSubagent(params, {
         agents,
         config,
         configDir: path.dirname(file),
         dispatch: { model, thinking: ctx.thinkingLevel },
+        readOnly,
         cwd: ctx.cwd,
         signal,
         onUpdate,

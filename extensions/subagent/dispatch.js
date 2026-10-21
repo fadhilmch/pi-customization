@@ -4,7 +4,7 @@
 const path = require('node:path');
 const { applyOverrides } = require('./agents.js');
 const { buildChildArgs, outputBudget, piInvocation } = require('./args.js');
-const { createRun, runChild, mapLimit, isFailed } = require('./run.js');
+const { createRun, runChild, mapLimit, isFailed, finish } = require('./run.js');
 const { modelText } = require('./output.js');
 
 const PREVIOUS = '{previous}';
@@ -22,6 +22,16 @@ function available(agents) {
   return agents.map((a) => a.name).join(', ') || 'none';
 }
 
+// Tools that can change files or run arbitrary commands. An agent with no tool list gets Pi's defaults, which include them.
+const MUTATING_TOOLS = ['write', 'edit', 'bash'];
+
+// A session without write/edit (plan mode, or any read-only setup) must not delegate to a child that can change things.
+function readOnlyViolation(agent) {
+  if (!agent.tools || !agent.tools.length) return 'uses the default tool set (including write, edit and bash)';
+  const risky = MUTATING_TOOLS.filter((t) => agent.tools.includes(t));
+  return risky.length ? `has the ${risky.join(', ')} tool${risky.length > 1 ? 's' : ''}` : null;
+}
+
 function errorResult(text, mode = 'single') {
   return { content: [{ type: 'text', text }], details: { mode, runs: [] }, isError: true };
 }
@@ -36,7 +46,7 @@ function chainTask(task, previous, index) {
 async function executeSubagent(params, opts) {
   const {
     agents, config, dispatch = {}, cwd, signal, onUpdate, configDir,
-    env = process.env, run = runChild, invocation = piInvocation,
+    env = process.env, run = runChild, invocation = piInvocation, readOnly = false,
   } = opts;
   const mode = modeOf(params);
   if (!mode) return errorResult(`Provide exactly one of: agent + task, tasks (parallel) or chain. Agents: ${available(agents)}.`);
@@ -49,6 +59,15 @@ async function executeSubagent(params, opts) {
   for (const it of items) {
     if (!it || typeof it.agent !== 'string' || typeof it.task !== 'string' || !it.task.trim()) return errorResult('Every item needs an agent name and a non-empty task.', mode);
     if (!agents.some((a) => a.name === it.agent)) return errorResult(`Unknown agent "${it.agent}". Agents: ${available(agents)}.`, mode);
+  }
+
+  if (readOnly) {
+    for (const it of items) {
+      const why = readOnlyViolation(agents.find((a) => a.name === it.agent));
+      if (why) {
+        return errorResult(`Refused: this session is read-only (write and edit are disabled, for example in plan mode), and agent "${it.agent}" ${why}. Only read-only agents such as scout may run now. Finish planning and get approval, then delegate.`, mode);
+      }
+    }
   }
 
   const depth = (Number(env.PI_SUBAGENT_DEPTH) || 0) + 1;
@@ -65,12 +84,13 @@ async function executeSubagent(params, opts) {
     const built = buildChildArgs(agent, task, { dispatch, config, configDir, maxChars: share });
     const r = createRun({ agent: agent.name, source: agent.source, task, model: built.model, step: mode === 'chain' ? index + 1 : undefined });
     r.warnings = built.warnings;
+    r.budget = outputBudget(agent, config, share);
     runs[index] = r;
+    if (signal?.aborted) return finish(r, { exitCode: 1, aborted: true }); // cancelled before it started: do not spawn
     emit();
     const inv = invocation(built.args);
     const childCwd = item.cwd ? path.resolve(cwd, item.cwd) : cwd;
     await run(r, { command: inv.command, args: inv.args, cwd: childCwd, env: childEnv, signal, timeoutMs, onUpdate: emit });
-    r.budget = outputBudget(agent, config, share);
     return r;
   };
 

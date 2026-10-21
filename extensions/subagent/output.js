@@ -46,8 +46,13 @@ function failureReason(run) {
   return capText(raw, 1500);
 }
 
+// The cap for one report: the call-level limit, lowered by the run's own budget (agent maxOutput).
+function reportCap(run, maxChars) {
+  return Math.min(...[run.budget, maxChars].filter((n) => Number.isFinite(n) && n > 0)) || undefined;
+}
+
 function runReport(run, maxChars) {
-  return isFailed(run) ? `FAILED: ${failureReason(run)}` : capText(run.output || '(no output)', maxChars);
+  return isFailed(run) ? `FAILED: ${failureReason(run)}` : capText(run.output || '(no output)', reportCap(run, maxChars));
 }
 
 // Text for the parent model. Single and chain return only the (last) report; parallel labels each one.
@@ -61,11 +66,11 @@ function modelText(mode, runs, { maxChars } = {}) {
     const last = runs[runs.length - 1];
     if (!last) return 'Chain did not run.';
     if (isFailed(last)) return `Chain stopped at step ${runs.length} (${last.agent}): ${failureReason(last)}`;
-    return capText(last.output || '(no output)', maxChars);
+    return capText(last.output || '(no output)', reportCap(last, maxChars));
   }
   const r = runs[0];
   if (!r) return 'Subagent did not run.';
-  return isFailed(r) ? `Subagent ${r.agent} failed: ${failureReason(r)}` : capText(r.output || '(no output)', maxChars);
+  return isFailed(r) ? `Subagent ${r.agent} failed: ${failureReason(r)}` : capText(r.output || '(no output)', reportCap(r, maxChars));
 }
 
 module.exports = { capText, formatTokens, formatDuration, totalUsage, formatUsage, failureReason, runReport, modelText };

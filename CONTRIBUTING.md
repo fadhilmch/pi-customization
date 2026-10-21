@@ -13,7 +13,7 @@ extensions/<name>/
   README.md       Install / Usage / Config / How it works / Limits
 themes/           themes that belong to no single extension
 prompts/          prompt templates (/init, /commit, /pr) that belong to no single extension
-tests/            repo-wide tests (theme validation)
+tests/            repo-wide tests (themes and prompt templates)
 docs/media/       gifs and screenshots used by the READMEs
 ```
 

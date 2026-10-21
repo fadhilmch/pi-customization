@@ -52,7 +52,7 @@ In the interactive TUI each command opens a framed panel over the chat; `esc`, `
 ![/cost panel](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/usage-report-cost.png)
 
 - **Headline**: total spend on the current branch, split into main agent and subagents, with a bar of that split.
-- **Main agent**: one row per `provider/model` with cost, share and a bar, and under it input `↑`, output `↓`, cache read `R`, cache write `W` and turns. Compaction entries that recorded usage get their own `(compaction)` row.
+- **Main agent**: one row per `provider/model` with cost, share and a bar, and under it input `↑`, output `↓`, cache read `R`, cache write `W` and turns. Compaction entries that recorded usage get their own `(compaction)` row, branch summaries `(branch summary)`. Out-of-band usage entries (such as a cache warm-up) are added to their `provider/model` row without counting as a turn, or get a row named after their kind when no model is recorded.
 - **Subagents**: spend read from `subagent` tool results (`details.runs[].usage`), one row per agent and model, with runs instead of turns.
 - **Cache reads**: the share of all input tokens that came from the prompt cache. Cache reads cost a fraction of normal input, so a low share in a long session means the prompt is not being reused (for example after switching models or editing early messages).
 
@@ -64,7 +64,7 @@ None.
 
 ## How it works
 
-`messages.js` rebuilds the live context from the session branch (latest compaction summary, kept entries, later entries) and measures each message. `context.js` and `cost.js` aggregate it and format the plain-text reports; `panel.js` draws the framed panels (pure functions of the report and the terminal width, unit-tested for a fixed width and proportional bars); `index.ts` wires the commands, opens the panel with `ctx.ui.custom` as an overlay in the TUI and falls back to `ctx.ui.notify` elsewhere.
+`messages.js` takes the live context from Pi's own `sessionManager.buildSessionProjection()` (latest compaction only, `context_edit` applied; older Pi versions fall back to a local walk of the branch) and measures each message. `context.js` and `cost.js` aggregate it and format the plain-text reports; `panel.js` draws the framed panels (pure functions of the report and the terminal width, unit-tested for a fixed width and proportional bars); `index.ts` wires the commands, opens the panel with `ctx.ui.custom` as an overlay in the TUI and falls back to `ctx.ui.notify` elsewhere.
 
 Subagent spend is read from the details that the `subagent` extension attaches to its tool results, so it needs that extension; without it `/cost` shows only the main agent. Those details are kept for the UI and are not sent to the model.
 

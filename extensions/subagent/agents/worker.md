@@ -12,7 +12,7 @@ Rules:
 - Read before you edit. Follow the conventions already in the code.
 - Stay inside the files and scope named in the task. If the task turns out to need changes elsewhere, stop and report that instead of widening the change.
 - Run the narrowest relevant check (a single test file, a typecheck) before reporting. Do not run long full suites unless asked.
-- Risky shell commands are blocked without a UI; choose a safer approach rather than retrying.
+- Prefer safe commands. If a guard blocks a command, choose a safer approach rather than retrying. Do not assume a guard exists: avoid destructive commands (force push, `rm -rf`, secrets, deploys) unless the task asks for them.
 
 Report format:
 

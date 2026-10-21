@@ -32,6 +32,18 @@ function contextMessages(branch) {
   return entries.map(entryToMessage).filter(Boolean);
 }
 
+// What Pi will actually send: the session manager's own projection (latest compaction only,
+// context_edit applied). Older Pi versions lack it, so fall back to our approximation of the same walk.
+function projectedMessages(sessionManager) {
+  const sm = sessionManager || {};
+  if (typeof sm.buildSessionProjection === 'function') {
+    const p = sm.buildSessionProjection();
+    if (p && Array.isArray(p.messages)) return p.messages;
+  }
+  if (typeof sm.buildContextEntries === 'function') return sm.buildContextEntries().map(entryToMessage).filter(Boolean);
+  return contextMessages(sm.getBranch());
+}
+
 function blocksSize(content) {
   if (typeof content === 'string') return { chars: content.length, images: 0 };
   let chars = 0;
@@ -85,6 +97,7 @@ function measureMessage(m) {
       chars = (m.summary || '').length;
       break;
     case 'custom':
+    case 'system':
       ({ chars, images } = blocksSize(m.content));
       break;
     default:
@@ -137,4 +150,4 @@ function summarizeMessages(messages, { top = 5 } = {}) {
   return { totals, biggest: results.slice(0, top) };
 }
 
-module.exports = { CHARS_PER_TOKEN, estimateTokens, contextMessages, measureMessage, summarizeMessages, describeCall };
+module.exports = { CHARS_PER_TOKEN, estimateTokens, contextMessages, projectedMessages, measureMessage, summarizeMessages, describeCall };
