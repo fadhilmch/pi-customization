@@ -64,7 +64,7 @@ test('stop terminates a detached process group and stopAll is idempotent', async
   await new Promise((resolve) => setTimeout(resolve, 80));
   const childPid = Number((await fs.readFile(path.join(f.root, 'child.pid'), 'utf8')).trim());
   await f.jobs.stop(started.id, { graceMs: 100 });
-  assert.equal(isAlive(childPid), false);
+  assert.equal(await isGone(childPid), true, psLine(childPid));
   await f.jobs.stopAll();
   await f.jobs.stopAll();
 });
@@ -75,7 +75,7 @@ test('stop kills descendants that ignore TERM after the leader exits', async (t)
   await new Promise((resolve) => setTimeout(resolve, 80));
   const childPid = Number((await fs.readFile(path.join(f.root, 'child.pid'), 'utf8')).trim());
   await f.jobs.stop(started.id, { graceMs: 100 });
-  assert.equal(isAlive(childPid), false);
+  assert.equal(await isGone(childPid), true, psLine(childPid));
 });
 
 async function waitUntil(check, timeoutMs = 15000) {
@@ -186,7 +186,7 @@ test('stop escalates to SIGKILL when the leader ignores TERM', async (t) => {
   await f.jobs.stop(started.id, { graceMs: 200 });
   await closed(f.jobs, started.id);
   assert.equal((await f.jobs.list())[0].state, 'exited SIGKILL');
-  assert.equal(isAlive(started.pid), false);
+  assert.equal(await isGone(started.pid), true, psLine(started.pid));
 });
 
 test('filter holds back a partial last line until it completes', async (t) => {
@@ -207,6 +207,25 @@ test('start records a pid file for later reaping', async (t) => {
   assert.deepEqual(record, { pid: started.pid, ownerPid: process.pid, command: 'sleep 30' });
 });
 
+// A killed process stays a zombie until its new parent reaps it, and kill(pid, 0) still succeeds on a zombie.
+// On Linux CI the reaper can lag, so treat zombies as dead and give the kill a moment to land.
 function isAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; }
+  try { process.kill(pid, 0); } catch (error) { return error.code !== 'ESRCH'; }
+  try {
+    const out = require('node:child_process').execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim();
+    return out !== '' && !out.startsWith('Z');
+  } catch { return false; }
+}
+
+function psLine(pid) {
+  try { return `still running: ${require('node:child_process').execFileSync('ps', ['-o', 'pid=,ppid=,pgid=,stat=,command=', '-p', String(pid)], { encoding: 'utf8' }).trim()}`; } catch { return 'ps failed'; }
+}
+
+async function isGone(pid, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  while (isAlive(pid)) {
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return true;
 }
