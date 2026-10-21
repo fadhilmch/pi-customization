@@ -187,3 +187,56 @@ test('describeCall names subagent calls', () => {
   assert.equal(describeCall(call('1', 'subagent', { agent: 'scout', task: 'find x' })), 'scout: find x');
   assert.equal(describeCall(call('1', 'bash', { command: 'ls  -la' })), 'ls -la');
 });
+
+test('projectedMessages prefers Pi\'s projection, falls back to context entries, then to the branch walk', () => {
+  const { projectedMessages } = require('../messages.js');
+  const projected = [{ role: 'compactionSummary', summary: 'new' }, { role: 'user', content: 'edited' }];
+  let branchCalls = 0;
+  // Pi's projection already dropped old summaries and applied context_edit: use it as is.
+  assert.equal(projectedMessages({ buildSessionProjection: () => ({ messages: projected }), getBranch: () => { branchCalls++; return []; } }), projected);
+  assert.equal(branchCalls, 0);
+  const entries = [{ id: '1', type: 'compaction', summary: 's' }, { id: '2', type: 'message', message: { role: 'user', content: 'x' } }, { id: '3', type: 'context_edit', targetId: '2' }];
+  assert.deepEqual(projectedMessages({ buildContextEntries: () => entries }).map((m) => m.role), ['compactionSummary', 'user']);
+  const branch = [msg('1', { role: 'user', content: 'a' }), msg('2', { role: 'user', content: 'b' })];
+  assert.equal(projectedMessages({ getBranch: () => branch }).length, 2);
+});
+
+test('/context ignores superseded compaction summaries and honours context_edit via the projection', () => {
+  // Branch with two compactions and an edited tool result; Pi's projection keeps only the newest summary.
+  const big = 'x'.repeat(40000);
+  const projection = { messages: [
+    { role: 'compactionSummary', summary: 'newest' },
+    { role: 'toolResult', toolName: 'read', toolCallId: 't', content: [{ type: 'text', text: '[trimmed]' }] },
+  ] };
+  const sm = {
+    buildSessionProjection: () => projection,
+    getBranch: () => [
+      { id: '1', type: 'compaction', summary: big, firstKeptEntryId: '1' },
+      msg('2', { role: 'toolResult', toolName: 'read', toolCallId: 't', content: [{ type: 'text', text: big }] }),
+      { id: '3', type: 'compaction', summary: 'newest', firstKeptEntryId: '2' },
+    ],
+  };
+  const { projectedMessages } = require('../messages.js');
+  const tokens = summarizeMessages(projectedMessages(sm)).totals;
+  assert.ok(tokens.toolResult.tokens < 50, 'edited result counted at its replacement size');
+  assert.ok(tokens.other.tokens < 50, 'only the newest summary counted');
+});
+
+test('aggregate counts usage entries (cache_warm) and branch summary usage', () => {
+  const u = (cost) => ({ input: 100, output: 10, cacheRead: 0, cacheWrite: 500, cost: { total: cost } });
+  const branch = [
+    msg('1', { role: 'assistant', provider: 'p', model: 'm', usage: u(0.01), content: [] }),
+    { id: '2', type: 'usage', kind: 'cache_warm', provider: 'p', model: 'm', usage: u(0.02) },
+    { id: '3', type: 'usage', kind: 'cache_warm', provider: '', model: '', usage: u(0.04) },
+    { id: '4', type: 'branch_summary', fromId: '1', summary: 's', usage: u(0.08) },
+  ];
+  const r = aggregate(branch);
+  const m = r.models.find((x) => x.name === 'p/m');
+  assert.equal(m.turns, 1, 'a cache warm-up is not a conversation turn');
+  assert.ok(Math.abs(m.cost - 0.03) < 1e-9);
+  assert.equal(m.cacheWrite, 1000);
+  assert.ok(r.models.some((x) => x.name === '(cache_warm)'));
+  assert.ok(r.models.some((x) => x.name === '(branch summary)'));
+  assert.ok(Math.abs(r.main.cost - 0.15) < 1e-9);
+  assert.match(formatCost(r), /Total \$0\.150/);
+});
