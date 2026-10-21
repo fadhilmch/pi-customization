@@ -15,19 +15,22 @@ const CHOICES = {
   keep: 'Keep planning',
 };
 
-// Active tool list while planning: drop write/edit, add exit_plan_mode.
-function planTools(active) {
-  return [...new Set([...active.filter((n) => !WRITE_TOOLS.has(n)), EXIT_TOOL])];
+// Active tool list while planning: the saved list plus whatever is active now (so tools another extension
+// activated, like tool_search, survive load order), minus write tools, plus exit_plan_mode.
+function planTools(saved, current = []) {
+  return [...new Set([...saved, ...current].filter((n) => !WRITE_TOOLS.has(n)).concat(EXIT_TOOL))];
 }
 
 function isBlockedToolCall(toolName, input = {}) {
   return WRITE_TOOLS.has(toolName) || (toolName === 'bash_bg' && input.action === 'start');
 }
 
-// Active tool list after leaving plan mode: the saved list, minus exit_plan_mode.
+// Active tool list after leaving plan mode: the saved list plus tools activated during plan mode
+// (never write tools or exit_plan_mode, so plan mode cannot smuggle them back in).
 function restoredTools(saved, current) {
-  const base = saved && saved.length ? saved : current;
-  return base.filter((n) => n !== EXIT_TOOL);
+  const added = current.filter((n) => !WRITE_TOOLS.has(n));
+  const base = saved && saved.length ? [...saved, ...added] : current;
+  return [...new Set(base.filter((n) => n !== EXIT_TOOL))];
 }
 
 function planInstructions() {

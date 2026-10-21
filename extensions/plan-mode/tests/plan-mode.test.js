@@ -87,3 +87,8 @@ test('plan fallback body wraps instead of truncating; result is a short wrapped 
   assert.ok(narrow[1].startsWith('     '));
   for (const l of narrow) assert.ok(visibleWidth(l) <= 24);
 });
+
+test('tool sets merge the saved list with the currently active tools', () => {
+  assert.deepEqual(plan.planTools(['read', 'write'], ['read', 'tool_search', 'edit']).sort(), ['exit_plan_mode', 'read', 'tool_search']);
+  assert.deepEqual(plan.restoredTools(['read', 'write'], ['read', 'exit_plan_mode', 'ask_user', 'edit']).sort(), ['ask_user', 'read', 'write']);
+});

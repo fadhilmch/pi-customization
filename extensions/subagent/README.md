@@ -138,7 +138,7 @@ System prompt for the agent. Say what to look for and how to format the report.
 
 There is deliberately no project-level config: it could add extensions to every child.
 
-Set `exposure` to `"deferred"` to discover `subagent` through `tool_search` when needed. The default is `direct`.
+`exposure` is `"direct"` (default) or `"deferred"`. `direct` registers `subagent` as Pi's `model-only` tool: declared to the model while active, never callable from codemode scripts or other tools (it orchestrates processes, so scripts should not start it). `deferred` hides it from the model until `tool_search` finds it; if `tool_search` is not installed, `subagent` is activated directly instead.
 
 ## How it works
 

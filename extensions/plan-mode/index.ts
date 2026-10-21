@@ -53,7 +53,7 @@ export default function (pi: ExtensionAPI) {
   function applyTools() {
     if (planMode) {
       if (savedTools === undefined) savedTools = pi.getActiveTools();
-      pi.setActiveTools(planTools(savedTools));
+      pi.setActiveTools(planTools(savedTools, pi.getActiveTools()));
     } else {
       pi.setActiveTools(restoredTools(savedTools, pi.getActiveTools()));
       savedTools = undefined;
@@ -192,7 +192,7 @@ export default function (pi: ExtensionAPI) {
     }
 
     if (askGate && mutating && ctx?.hasUI) {
-      const what = event.toolName === "bash" ? String(event.input?.command ?? "") : `${event.toolName} ${event.input?.path ?? ""}`;
+      const what = event.toolName === "bash" || event.toolName === "bash_bg" ? String(event.input?.command ?? "") : `${event.toolName} ${event.input?.path ?? ""}`;
       const ok = await ctx.ui.confirm("Plan approved: allow this step?", what);
       if (!ok) return { block: true, reason: "The user declined this action." };
     }

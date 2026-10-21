@@ -42,7 +42,9 @@ export default function (pi: ExtensionAPI) {
       "Use ask_user only for decisions that are the user's to make and cannot be inferred from the code; batch all questions into one call, recommended option first.",
     ],
     parameters: Params,
-    exposure,
+    // model-only: ask_user asks the human, so scripts (codemode / ctx.executeTool) must not call it.
+    // Config "direct" (the default) means declared to the model while active; "deferred" is found via tool_search.
+    exposure: exposure === "deferred" ? "deferred" : "model-only",
     renderShell: "self",
 
     async execute(_toolCallId: string, params: any, signal: any, _onUpdate: any, ctx: any) {
@@ -125,8 +127,10 @@ export default function (pi: ExtensionAPI) {
       const registered = pi.getAllTools?.().some((tool: any) => tool.name === "tool_search");
       const fallback = registered ? "tool_search" : "ask_user";
       if (!active.includes(fallback)) pi.setActiveTools([...active, fallback]);
-      if (!notified && ctx?.hasUI) ctx.ui.notify(registered ? "ask_user is deferred; tool_search was activated so it can still be discovered." : "tool_search is unavailable; ask_user was activated directly.", "info");
-      notified = true;
+      if (!notified && ctx?.hasUI) {
+        ctx.ui.notify(registered ? "ask_user is deferred; tool_search was activated so it can still be discovered." : "tool_search is unavailable; ask_user was activated directly.", "info");
+        notified = true;
+      }
     });
   }
 }

@@ -20,13 +20,13 @@ function load(file) {
   return mod.exports;
 }
 
-test('ask_user registers direct by default and deferred on user config', async (t) => {
+test('ask_user registers model-only by default and deferred on user config', async (t) => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'ask-user-exposure-'));
   const before = process.env.PI_CODING_AGENT_DIR; process.env.PI_CODING_AGENT_DIR = home;
   t.after(() => { if (before === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = before; fs.rmSync(home, { recursive: true, force: true }); });
   const file = path.join(__dirname, '..', 'index.ts');
   function register(search = true) { const tools = {}; const events = {}; const pi = { registerTool: (tool) => { tools[tool.name] = tool; }, on: (name, fn) => { (events[name] ||= []).push(fn); }, getActiveTools: () => pi.active || ['read'], getAllTools: () => search ? [{ name: 'tool_search' }] : [], setActiveTools: (next) => { pi.active = next; } }; load(file)(pi); return { tools, events, pi }; }
-  assert.equal(register().tools.ask_user.exposure, 'direct');
+  assert.equal(register().tools.ask_user.exposure, 'model-only');
   const direct = register();
   assert.ok(JSON.stringify([direct.tools.ask_user.name, direct.tools.ask_user.description, direct.tools.ask_user.parameters, direct.tools.ask_user.promptSnippet, direct.tools.ask_user.promptGuidelines]).length / 4 < 350);
   fs.writeFileSync(path.join(home, 'ask-user.json'), JSON.stringify({ exposure: 'deferred' }));
@@ -36,6 +36,12 @@ test('ask_user registers direct by default and deferred on user config', async (
   await h.events.session_start[0]({}, { hasUI: true, ui: { notify: (message) => notices.push(message) } });
   assert.ok(h.pi.active.includes('tool_search'));
   assert.equal(notices.length, 1);
+  const d2 = register();
+  const seen = [];
+  await d2.events.session_start[0]({}, { hasUI: false });
+  await d2.events.session_start[0]({}, { hasUI: true, ui: { notify: (m) => seen.push(m) } });
+  await d2.events.session_start[0]({}, { hasUI: true, ui: { notify: (m) => seen.push(m) } });
+  assert.equal(seen.length, 1, 'headless start does not consume the one-time notice');
   const noSearch = register(false);
   await noSearch.events.session_start[0]({}, { hasUI: false });
   assert.ok(noSearch.pi.active.includes('ask_user'));

@@ -55,7 +55,7 @@ Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`)
 
 ## Keeping tool definitions small
 
-`/context` shows active tools and their estimated token sizes. These user configs support `exposure: "direct"` (default) or `"deferred"`: `ask-user.json`, `subagent.json`, `web.json`, `bg-shell.json`, and `notebook.json` in `~/.pi/agent/`. Project config cannot change exposure. The `todo` and `exit_plan_mode` tools are not part of this setting.
+`/context` shows active tools and their estimated token sizes. These user configs support `exposure: "direct"` (default) or `"deferred"`: `ask-user.json`, `subagent.json`, `web.json`, `bg-shell.json`, and `notebook.json` in `~/.pi/agent/`. `direct` means the tool is declared to the model while active; for `ask_user` and `subagent` (tools that ask the user or orchestrate processes) it is registered as Pi's `model-only`, so codemode scripts cannot call them. Project config cannot change exposure. The `todo` and `exit_plan_mode` tools are not part of this setting.
 
 Tools registered with `exposure: "deferred"` stay out of the prompt until `tool_search` finds and activates them. Good candidates are tools used only on some tasks, such as `notebook_edit` and `web_search`. Keep tools used most turns `direct`, because a deferred tool adds a `tool_search` call before its first use. MCP servers use the same setting in `mcp.json`:
 
