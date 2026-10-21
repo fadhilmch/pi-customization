@@ -6,6 +6,7 @@ const {
   formatModelLabel,
   formatCountdown,
   buildPrimaryItems,
+  fitPrimaryItems,
 } = require('../format.js');
 
 test('registers F1 as a shortcut for the built-in hotkeys command', async () => {
@@ -188,4 +189,33 @@ test('async quota snapshot returns null when the JSON file is missing', async ()
     if (prev === undefined) delete process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE;
     else process.env.PI_STATUSLINE_CLAUDE_USAGE_FILE = prev;
   }
+});
+
+test('fitPrimaryItems degrades by priority and never exceeds the width', () => {
+  const measure = (t) => [...t].reduce((n, ch) => n + (ch.codePointAt(0) >= 0x1f300 ? 2 : 1), 0);
+  const args = {
+    model: { provider: 'openai-codex', id: 'demo', name: 'Demo Model' },
+    thinkingLevel: 'medium',
+    contextPct: 42,
+    quota: { fiveHourPct: 31, sevenDayPct: 72, resetText: '1d 14h' },
+  };
+  const total = (items) => items.reduce((n, i) => n + measure(i.text), 0) + 3 * (items.length - 1);
+  const keys = (w) => fitPrimaryItems(args, w, { measure }).map((i) => i.key);
+  const bars = (items, k) => items.find((i) => i.key === k).text.match(/[█░]/g)?.length ?? 0;
+  assert.equal(bars(fitPrimaryItems(args, 500, { measure }), 'context'), 8);
+  const w1 = total(buildPrimaryItems({ ...args, level: 1 }));
+  const mid = fitPrimaryItems(args, w1, { measure });
+  assert.equal(bars(mid, 'fiveHour'), 4);
+  assert.deepEqual(mid.map((i) => i.key), ['model', 'thinking', 'context', 'fiveHour', 'sevenDay', 'reset']);
+  const w2 = total(buildPrimaryItems({ ...args, level: 2 }));
+  assert.deepEqual(keys(w2), ['model', 'thinking', 'context', 'fiveHour', 'sevenDay', 'reset']);
+  assert.equal(bars(fitPrimaryItems(args, w2, { measure }), 'context'), 0);
+  // below that: 7d is dropped first, the reset countdown outlives thinking
+  assert.ok(!keys(w2 - 1).includes('sevenDay') && keys(w2 - 1).includes('reset'));
+  for (const w of [100, 80, 60, 40]) {
+    const items = fitPrimaryItems(args, w, { measure });
+    assert.ok(total(items) <= w || items.length === 1, `w=${w}`);
+    assert.equal(items[0].key, 'model');
+  }
+  assert.ok(keys(100).includes('reset'));
 });

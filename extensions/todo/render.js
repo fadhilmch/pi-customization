@@ -37,12 +37,23 @@ function formatCallLine({ state = 'pending', width = 80, pad = 0 } = {}) {
   return truncate(`${' '.repeat(pad)}${bullet} ${bold('Update Todos')}`, width);
 }
 
-// Tool result: "  ⎿  ☒ first" then aligned continuation rows.
-function formatResult(todos, { isError = false, errorText = '', isPartial = false, width = 80, pad = 0 } = {}) {
+// Compact one-line summary: "1/3 done · ◼ Write fix" (or "3/3 done" when finished).
+function summaryText(todos) {
+  const done = todos.filter((t) => t.status === 'completed').length;
+  const doing = todos.find((t) => t.status === 'in_progress');
+  let s = `${done}/${todos.length} done`;
+  if (doing) s += ` · ${fg(COLORS.accent, GLYPHS.in_progress)} ${doing.content}`;
+  return s;
+}
+
+// Tool result. The persistent widget above the editor already shows the full list during a turn, so the
+// collapsed result is a one-line summary; ctrl+o (expanded) lists every item, like Claude Code's result.
+function formatResult(todos, { isError = false, errorText = '', isPartial = false, expanded = false, width = 80, pad = 0 } = {}) {
   const p = ' '.repeat(pad);
   if (isPartial) return [truncate(`${p}${RESULT_PREFIX}${dim('Updating…')}`, width)];
   if (isError) return [truncate(`${p}${RESULT_PREFIX}${fg(COLORS.error, errorText || 'Invalid todo list')}`, width)];
   if (!todos || todos.length === 0) return [truncate(`${p}${RESULT_PREFIX}${dim('Todo list cleared')}`, width)];
+  if (!expanded) return [truncate(`${p}${RESULT_PREFIX}${fg(COLORS.muted, summaryText(todos))}`, width)];
   return todos.map((t, i) => truncate(`${p}${i === 0 ? RESULT_PREFIX : CONT_PREFIX}${itemText(t)}`, width));
 }
 
@@ -52,4 +63,4 @@ function plainList(todos) {
   return todos.map((t) => `${GLYPHS[t.status] || GLYPHS.pending} ${t.content}`).join('\n');
 }
 
-module.exports = { GLYPHS, itemText, widgetLines, formatCallLine, formatResult, plainList };
+module.exports = { GLYPHS, itemText, widgetLines, formatCallLine, formatResult, summaryText, plainList };

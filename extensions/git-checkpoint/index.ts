@@ -128,7 +128,19 @@ export default function (pi: ExtensionAPI) {
         if (all.length === 0) return ctx.ui.notify("No checkpoints yet. One is taken before each prompt.", "info");
 
         const current = sessionId(ctx);
-        const labels = all.map((c: any) => checkpointLabel(c, { currentSession: ck.safeSegment(current) }));
+        // Checkpoints are taken before the edits they precede, so "files in snapshot" is misleading. Count what
+        // restoring would actually change in the current tree instead (computed now, only for the listed rows).
+        const counts = await Promise.all(
+          all.map((c: any) =>
+            ck.planRestore(ctx.cwd, c).then(
+              (pl: any) => pl.write.length + pl.remove.length,
+              () => undefined,
+            ),
+          ),
+        );
+        const labels = all.map((c: any, i: number) =>
+          checkpointLabel(c, { currentSession: ck.safeSegment(current), restores: counts[i] }),
+        );
         const picked = await ctx.ui.select("⏺ Rewind code to…", labels);
         if (!picked) return;
         const cp = all[labels.indexOf(picked)];

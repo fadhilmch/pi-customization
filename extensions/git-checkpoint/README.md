@@ -30,7 +30,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-git-checkpoint`. See th
 
 ## Usage
 
-- `/rewind` lists the 20 most recent checkpoints (turn, age, files changed, prompt) with `ctx.ui.select`, shows exactly what would change, asks for confirmation, then restores.
+- `/rewind` lists the 20 most recent checkpoints (turn, age, how many files restoring would change right now, prompt) with `ctx.ui.select`, shows exactly what would change, asks for confirmation, then restores.
 - `/rewind clean` deletes every `refs/pi-checkpoints/*` ref in this repo (after confirmation). Objects are reclaimed by `git gc`.
 - On `/fork` and `/tree` navigation to a user prompt, Pi asks whether to restore code to the state before that prompt (interactive modes only; never automatic). Navigation is never cancelled by this extension.
 

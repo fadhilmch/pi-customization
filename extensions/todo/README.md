@@ -32,7 +32,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-todo`. See the [root RE
 
 - `/todos` shows the list, `/todos clear` empties it.
 - `todo` tool: the model sends the whole list each call (`todos: [{ content, status: pending|in_progress|completed, activeForm? }]`). The description tells it to use the tool for 3+ step work, keep exactly one task `in_progress`, and mark tasks completed immediately. Several `in_progress` items are accepted with a warning; bad input returns an error result.
-- Widget above the editor: `  ☒ done` (dim, strikethrough), `  ◼ doing` (bold, teal glyph), `  ☐ pending`. Shown during a turn, hidden after the turn when the list is empty or all done. Lists over 12 rows fold completed rows first.
+- Widget above the editor: `  ☒ done` (dim, strikethrough), `  ◼ doing` (bold, teal glyph), `  ☐ pending`. The tool result itself is one line (`⎿  1/3 done · ◼ Write fix`) so the list is not printed twice; ctrl+o expands it to every item. Shown during a turn, hidden after the turn when the list is empty or all done. Lists over 12 rows fold completed rows first.
 - Tool rendering matches claude-look: `⏺ Update Todos` then `  ⎿  ` rows.
 - Other extensions can replace the list with `pi.events.emit("todo:set", { items: ["step", ...] })` (strings or `{content, status?, activeForm?}`; first item becomes in_progress). plan-mode does this on approval.
 

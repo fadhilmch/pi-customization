@@ -73,4 +73,62 @@ function padTo(s, width) {
   return t + ' '.repeat(Math.max(0, width - visibleWidth(t)));
 }
 
-module.exports = { COLORS, RESET, fg, bg, bold, dim, stripAnsi, visibleWidth, truncate, padTo };
+// Wrap one logical line into rows of at most `width` visible cells. Breaks at the last space when
+// there is one (hard break otherwise), counts wide chars as 2 cells, and re-opens active SGR styling
+// at the start of each continuation row. Returns at least one row.
+function wrapAnsi(s, width) {
+  s = String(s).replace(/\t/g, '  ');
+  width = Math.max(1, width);
+  if (visibleWidth(s) <= width) return [s];
+  const items = [];
+  let i = 0;
+  while (i < s.length) {
+    ANSI_RE.lastIndex = i;
+    const m = ANSI_RE.exec(s);
+    if (m && m.index === i) { items.push({ seq: m[0] }); i += m[0].length; continue; }
+    const cp = s.codePointAt(i);
+    const ch = String.fromCodePoint(cp);
+    items.push({ ch, w: charWidth(cp) });
+    i += ch.length;
+  }
+  const rows = [];
+  let cur = [];
+  let curW = 0;
+  const flush = (list) => rows.push(list);
+  for (const it of items) {
+    if (it.seq) { cur.push(it); continue; }
+    if (curW + it.w > width) {
+      let lastSpace = -1;
+      for (let k = cur.length - 1; k >= 0; k--) if (cur[k].ch === ' ') { lastSpace = k; break; }
+      const hasText = lastSpace > 0 && cur.slice(0, lastSpace).some((x) => x.ch && x.ch !== ' ');
+      if (it.ch !== ' ' && hasText) {
+        flush(cur.slice(0, lastSpace));
+        cur = cur.slice(lastSpace + 1);
+        curW = cur.reduce((a, x) => a + (x.w || 0), 0);
+      } else {
+        flush(cur);
+        cur = [];
+        curW = 0;
+      }
+      if (it.ch === ' ' && curW === 0) continue; // swallow the space at a break
+    }
+    cur.push(it);
+    curW += it.w;
+  }
+  flush(cur);
+  // Re-render, carrying styling across rows.
+  let active = [];
+  return rows.map((row) => {
+    let out = active.join('');
+    for (const it of row) {
+      if (it.seq) {
+        if (it.seq === RESET) active = [];
+        else active.push(it.seq);
+        out += it.seq;
+      } else out += it.ch;
+    }
+    return active.length ? out + RESET : out;
+  });
+}
+
+module.exports = { COLORS, RESET, fg, bg, bold, dim, stripAnsi, visibleWidth, truncate, padTo, wrapAnsi, charWidth };

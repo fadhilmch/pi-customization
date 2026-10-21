@@ -2,7 +2,7 @@
 // Pure plan-mode helpers: tool sets, prompts, approval choices, plan parsing, rendering.
 
 const TEAL = '#48968c';
-const { fg, bold, dim, truncate } = require('./ansi.js');
+const { fg, bold, dim, truncate, wrapAnsi } = require('./ansi.js');
 
 const EXIT_TOOL = 'exit_plan_mode';
 const WRITE_TOOLS = new Set(['write', 'edit']);
@@ -72,25 +72,48 @@ function statusText() {
   return fg(TEAL, '⏸ plan');
 }
 
-// Rendering of the exit_plan_mode call: header plus the plan body, so the user can read it before the prompt.
-function formatPlanCall(plan, { state = 'pending', width = 80, pad = 0 } = {}) {
+// Rendering of the exit_plan_mode call: header line. The plan body is rendered as Markdown by index.ts
+// (Pi's Markdown component); formatPlanBody is the plain-text fallback used when that is unavailable.
+function formatPlanHeader(state = 'pending', { width = 80, pad = 0 } = {}) {
   const p = ' '.repeat(pad);
   const bullet = state === 'error' ? fg('#ff6b80', '⏺') : state === 'success' ? fg('#4eba65', '⏺') : dim('⏺');
-  const out = [truncate(`${p}${bullet} ${bold('Plan')}${dim(' (plan mode)')}`, width)];
+  return truncate(`${p}${bullet} ${bold('Plan')}${dim(' (plan mode)')}`, width);
+}
+
+function formatPlanBody(plan, { width = 80, pad = 0 } = {}) {
+  const p = ' '.repeat(pad);
   const body = String(plan || '').replace(/\r/g, '').replace(/\n+$/, '');
-  if (body) for (const l of body.split('\n')) out.push(truncate(`${p}  ${l}`, width));
+  const out = [];
+  if (body) for (const l of body.split('\n')) for (const row of wrapAnsi(l, Math.max(1, width - pad - 2))) out.push(`${p}  ${row}`);
   return out;
 }
 
-function formatPlanResult(text, { isError = false, isPartial = false, width = 80, pad = 0 } = {}) {
+function formatPlanCall(plan, { state = 'pending', width = 80, pad = 0 } = {}) {
+  return [formatPlanHeader(state, { width, pad }), ...formatPlanBody(plan, { width, pad })];
+}
+
+// Short, user-facing line for the outcome; the model-facing text is long and only a fallback.
+function planOutcome(details, text) {
+  if (details && details.approved) {
+    return details.mode === 'ask' ? 'Plan approved · asking before each change' : 'Plan approved · executing';
+  }
+  if (details && details.approved === false && !details.isError) {
+    return `Still planning${details.feedback ? ` · ${details.feedback}` : ''}`;
+  }
+  return String(text || '').split('\n')[0];
+}
+
+function formatPlanResult(text, { details, isError = false, isPartial = false, width = 80, pad = 0 } = {}) {
   const p = ' '.repeat(pad);
   if (isPartial) return [truncate(`${p}  ⎿  ${dim('Waiting for approval…')}`, width)];
-  const first = String(text || '').split('\n')[0];
-  return [truncate(`${p}  ⎿  ${isError ? fg('#ff6b80', first) : fg('#999999', first)}`, width)];
+  const color = (l) => (isError ? fg('#ff6b80', l) : fg('#999999', l));
+  return wrapAnsi(planOutcome(details, text), Math.max(1, width - pad - 5)).map(
+    (row, i) => `${p}${i === 0 ? '  ⎿  ' : '     '}${color(row)}`,
+  );
 }
 
 module.exports = {
   TEAL, EXIT_TOOL, WRITE_TOOLS, CONTEXT_TAG, ENTRY_TYPE, CHOICES,
   planTools, restoredTools, planInstructions, approvalMessage, keepPlanningMessage,
-  extractSteps, widgetLine, statusText, formatPlanCall, formatPlanResult,
+  extractSteps, widgetLine, statusText, formatPlanCall, formatPlanHeader, formatPlanBody, planOutcome, formatPlanResult,
 };

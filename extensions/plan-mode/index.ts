@@ -1,4 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
+import { Markdown } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 const { isSafeCommand } = require("./bash.js");
@@ -17,6 +19,7 @@ const {
   widgetLine,
   statusText,
   formatPlanCall,
+  formatPlanHeader,
   formatPlanResult,
 } = require("./plan.js");
 
@@ -142,7 +145,17 @@ export default function (pi: ExtensionAPI) {
     renderCall(args: any, _theme: any, context: any) {
       return lines((width) => {
         const state = context.isError ? "error" : context.isPartial || !context.executionStarted ? "pending" : "success";
-        return formatPlanCall(args?.plan, { state, width, pad: context.outputPad ?? 0 });
+        const pad = context.outputPad ?? 0;
+        const head = formatPlanHeader(state, { width, pad });
+        const plan = String(args?.plan ?? "").trim();
+        if (!plan) return [head];
+        try {
+          // Real Markdown (headings, bold, code, lists) in the active theme, indented under the header.
+          const md = new Markdown(plan, pad + 2, 0, getMarkdownTheme());
+          return [head, ...md.render(width)];
+        } catch {
+          return formatPlanCall(plan, { state, width, pad });
+        }
       });
     },
 
@@ -150,6 +163,7 @@ export default function (pi: ExtensionAPI) {
       const first = result.content?.find((c: any) => c.type === "text")?.text;
       return lines((width) =>
         formatPlanResult(first, {
+          details: result.details,
           isError: Boolean(result.details?.isError) || context.isError,
           isPartial: options.isPartial,
           width,

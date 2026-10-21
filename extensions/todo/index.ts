@@ -116,6 +116,7 @@ export default function (pi: ExtensionAPI) {
           isError: Boolean(result.details?.error) || context.isError,
           errorText: result.details?.error,
           isPartial: options.isPartial,
+          expanded: options.expanded,
           width,
           pad: context.outputPad ?? 0,
         }),

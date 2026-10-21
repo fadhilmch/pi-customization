@@ -15,9 +15,16 @@ function clip(s, n) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
-/** One select row: "turn 4 · 5m ago · 3 files · fix the parser" */
-function checkpointLabel(c, { now = Date.now(), currentSession = '' } = {}) {
-  const parts = [`turn ${c.turn}`, timeAgo(c.time, now), `${c.files} file${c.files === 1 ? '' : 's'}`];
+/** Files a restore would touch, as a short phrase. `restores` = number of files that differ from the current tree. */
+function restoreText(restores) {
+  if (restores === 0) return 'no changes since';
+  return `restores ${restores} file${restores === 1 ? '' : 's'}`;
+}
+
+/** One select row: "turn 4 · 5m ago · restores 3 files · fix the parser" (falls back to files-in-snapshot if `restores` is unknown) */
+function checkpointLabel(c, { now = Date.now(), currentSession = '', restores } = {}) {
+  const what = Number.isInteger(restores) ? restoreText(restores) : `${c.files} file${c.files === 1 ? '' : 's'}`;
+  const parts = [`turn ${c.turn}`, timeAgo(c.time, now), what];
   if (c.kind === 'pre-restore') parts.push('before rewind');
   if (currentSession && c.session && c.session !== currentSession) parts.push(`session ${c.session.slice(0, 8)}`);
   return `${parts.join(' · ')} · ${c.prompt ? clip(c.prompt, 70) : '(no prompt)'}`;
@@ -42,4 +49,4 @@ function describePlan(plan) {
 const statusText = (c) => DIM(`⏺ checkpoint ${c.turn}`);
 const skipText = (reason) => DIM(`⏺ checkpoint skipped (${reason})`);
 
-module.exports = { timeAgo, checkpointLabel, describePlan, listPaths, statusText, skipText };
+module.exports = { restoreText, timeAgo, checkpointLabel, describePlan, listPaths, statusText, skipText };

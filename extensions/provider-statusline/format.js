@@ -69,15 +69,17 @@ function formatCountdown(resetAt, nowMs = Date.now()) {
   return `${minutes}m`;
 }
 
-function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, quota, show = {} }) {
+function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, quota, show = {}, level = 0 }) {
+  // level 0: 8-cell bars; 1: 4-cell bars; 2: no bars ("Ctx 42%")
   const kind = getProviderKind(model);
   const { providerSymbol = true, contextBar = true, quota: showQuota = true, cost: showCost = true } = show;
+  const bar = (pct) => (level >= 2 ? '' : `${makeBar(pct, level === 1 ? 4 : 8)} `);
   const items = [
     { key: 'model', text: formatModelLabel(model, { symbol: providerSymbol }) },
     { key: 'thinking', text: `⚡ ${thinkingLevel || 'off'}` },
   ];
   if (contextBar) {
-    items.push({ key: 'context', text: `🧠 Ctx ${makeBar(contextPct, 8)} ${roundPercent(contextPct)}%`, pct: roundPercent(contextPct) });
+    items.push({ key: 'context', text: `🧠 Ctx ${bar(contextPct)}${roundPercent(contextPct)}%`, pct: roundPercent(contextPct) });
   }
 
   const hasQuota = showQuota && quota && (Number.isFinite(quota.fiveHourPct) || Number.isFinite(quota.sevenDayPct) || quota.resetText);
@@ -85,19 +87,19 @@ function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, 
     if (Number.isFinite(quota.fiveHourPct)) {
       items.push({
         key: 'fiveHour',
-        text: `⏱ 5h ${makeBar(quota.fiveHourPct, 8)} ${roundPercent(quota.fiveHourPct)}%`,
+        text: `⏱ 5h ${bar(quota.fiveHourPct)}${roundPercent(quota.fiveHourPct)}%`,
         pct: roundPercent(quota.fiveHourPct),
       });
     }
     if (Number.isFinite(quota.sevenDayPct)) {
       items.push({
         key: 'sevenDay',
-        text: `◷ 7d ${makeBar(quota.sevenDayPct, 8)} ${roundPercent(quota.sevenDayPct)}%`,
+        text: `◷ 7d ${bar(quota.sevenDayPct)}${roundPercent(quota.sevenDayPct)}%`,
         pct: roundPercent(quota.sevenDayPct),
       });
     }
     if (quota.resetText) {
-      items.push({ key: 'reset', text: `↻ ${quota.resetText}` });
+      items.push({ key: 'reset', text: level >= 2 ? `↻${quota.resetText}` : `↻ ${quota.resetText}` });
     }
     return items;
   }
@@ -106,6 +108,27 @@ function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, 
     items.push({ key: 'cost', text: `💰 Cost ${sessionCostText}` });
   }
 
+  return items;
+}
+
+// Drop order when even the compact form does not fit: first in the list goes first.
+const DROP_ORDER = ['cost', 'sevenDay', 'thinking', 'reset', 'fiveHour', 'context', 'model'];
+
+// Fit the primary line into `width` by degrading gracefully: shrink bars (8 -> 4 -> none), then drop the
+// lowest-priority items (cost, 7d, thinking level, ...) so the model, context, 5h and reset survive longest.
+// Returns the items to render; the caller joins them with a separator of `sepWidth` cells.
+function fitPrimaryItems(args, width, { sepWidth = 3, measure = (t) => [...t].length } = {}) {
+  const total = (items) => items.reduce((n, it) => n + measure(it.text), 0) + sepWidth * Math.max(0, items.length - 1);
+  let items = [];
+  for (const level of [0, 1, 2]) {
+    items = buildPrimaryItems({ ...args, level });
+    if (total(items) <= width) return items;
+  }
+  for (const key of DROP_ORDER) {
+    if (items.length <= 1) break;
+    items = items.filter((it) => it.key !== key);
+    if (total(items) <= width) return items;
+  }
   return items;
 }
 
@@ -125,5 +148,6 @@ module.exports = {
   formatModelLabel,
   formatCountdown,
   buildPrimaryItems,
+  fitPrimaryItems,
   formatWorkspacePath,
 };

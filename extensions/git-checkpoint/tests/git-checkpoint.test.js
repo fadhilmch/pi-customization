@@ -232,6 +232,9 @@ test('format helpers', () => {
   const label = fmt.checkpointLabel({ turn: 4, time: now - 60000, files: 1, prompt: 'fix it', session: 'x', kind: 'auto' }, { now });
   assert.equal(label, 'turn 4 · 1m ago · 1 file · fix it');
   assert.match(fmt.checkpointLabel({ turn: 1, time: now, files: 2, prompt: '', session: 'abcdefghij', kind: 'pre-restore' }, { now, currentSession: 'zzz' }), /before rewind · session abcdefgh · \(no prompt\)/);
+  assert.equal(fmt.checkpointLabel({ turn: 4, time: now, files: 0, prompt: 'fix it', session: 'x', kind: 'auto' }, { now, restores: 1 }), 'turn 4 · 0s ago · restores 1 file · fix it');
+  assert.match(fmt.checkpointLabel({ turn: 4, time: now, files: 0, prompt: 'p', session: 'x', kind: 'auto' }, { now, restores: 3 }), /restores 3 files/);
+  assert.match(fmt.checkpointLabel({ turn: 4, time: now, files: 5, prompt: 'p', session: 'x', kind: 'auto' }, { now, restores: 0 }), /no changes since/);
   const plan = { write: ['a'], remove: Array.from({ length: 10 }, (_, i) => `f${i}`) };
   const text = fmt.describePlan(plan);
   assert.match(text, /Rewrite 1 file/);

@@ -82,7 +82,9 @@ test('call line and result lines', () => {
   assert.equal(stripAnsi(render.formatCallLine({ state: 'success' })), '⏺ Update Todos');
   assert.equal(stripAnsi(render.formatCallLine({ pad: 2 })), '  ⏺ Update Todos');
   assert.match(render.formatCallLine({ state: 'error' }), /38;2;255;107;128/);
-  const out = render.formatResult(list, {}).map(stripAnsi);
+  assert.deepEqual(render.formatResult(list, {}).map(stripAnsi), ['  ⎿  1/3 done · ◼ Write fix']);
+  assert.equal(stripAnsi(render.formatResult([{ content: 'a', status: 'completed' }], {})[0]), '  ⎿  1/1 done');
+  const out = render.formatResult(list, { expanded: true }).map(stripAnsi);
   assert.deepEqual(out, ['  ⎿  ☒ Read code', '     ◼ Write fix', '     ☐ Run tests']);
   assert.equal(stripAnsi(render.formatResult([], {})[0]), '  ⎿  Todo list cleared');
   assert.equal(stripAnsi(render.formatResult(null, { isError: true, errorText: 'nope' })[0]), '  ⎿  nope');

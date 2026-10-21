@@ -1,5 +1,5 @@
 'use strict';
-const { COLORS, fg, bg, bold, dim, truncate, padTo } = require('./ansi.js');
+const { COLORS, fg, bg, bold, dim, truncate, padTo, wrapAnsi } = require('./ansi.js');
 
 const HANDLED = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls']);
 const DISPLAY_NAMES = { bash: 'Bash', read: 'Read', edit: 'Update', write: 'Write', grep: 'Search', find: 'Search', ls: 'List' };
@@ -21,7 +21,7 @@ function primaryArg(toolName, args, cwd) {
   const a = args || {};
   switch (toolName) {
     case 'bash': return String(a.command ?? '').replace(/\s*\n\s*/g, ' ');
-    case 'read': case 'edit': case 'write': case 'ls': return relPath(a.path ?? '.', cwd);
+    case 'read': case 'edit': case 'write': case 'ls': return relPath(a.path ?? '', cwd);
     case 'grep': return a.pattern != null ? `pattern: "${a.pattern}"` : '';
     case 'find': return a.pattern != null ? `pattern: "${a.pattern}"` : relPath(a.path ?? '', cwd);
     default: return '';
@@ -45,15 +45,21 @@ function foldLine(hidden) {
   return dim(`… +${hidden} line${hidden === 1 ? '' : 's'} (ctrl+o to expand)`);
 }
 
-// Generic text result: first line gets "  ⎿  ", rest indented 5 spaces.
+// Generic text result: first row gets "  ⎿  ", the rest indent 5 spaces. Long lines wrap (never truncate),
+// leading/trailing blank lines are dropped. Collapsed: first 3 source lines, then a fold line counted in source lines.
 function formatTextResult(text, { expanded = false, isError = false, width = 80, pad = 0 } = {}) {
-  const raw = String(text ?? '').replace(/\r/g, '').replace(/\n+$/, '');
-  const all = raw === '' ? ['(No content)'] : raw.split('\n');
+  const raw = String(text ?? '').replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/(?:\n[ \t]*)+$/, '');
+  const all = raw.trim() === '' ? ['(No content)'] : raw.split('\n');
   const shown = expanded ? all : all.slice(0, COLLAPSED_LINES);
   const color = (l) => (isError ? fg(COLORS.error, l) : fg(COLORS.muted, l));
-  const out = shown.map((l, i) => (i === 0 ? RESULT_PREFIX : CONT_PREFIX) + color(l));
-  if (!expanded && all.length > shown.length) out.push(CONT_PREFIX + foldLine(all.length - shown.length));
-  return out.map((l) => truncate(' '.repeat(pad) + l, width));
+  const room = Math.max(1, width - pad - CONT_PREFIX.length);
+  const p = ' '.repeat(pad);
+  const out = [];
+  for (const l of shown) {
+    for (const row of wrapAnsi(l, room)) out.push(p + (out.length === 0 ? RESULT_PREFIX : CONT_PREFIX) + color(row));
+  }
+  if (!expanded && all.length > shown.length) out.push(p + CONT_PREFIX + foldLine(all.length - shown.length));
+  return out.map((l) => truncate(l, width));
 }
 
 // Display diff from Pi's edit tool: lines start with '+', '-' or ' ' followed by line number and text.

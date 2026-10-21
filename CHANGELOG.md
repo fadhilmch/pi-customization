@@ -11,6 +11,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Theme validation tests for every shipped theme.
 - CI workflow, issue and pull request templates, CONTRIBUTING, SECURITY and `.editorconfig`.
 
+### Fixed
+
+- `claude-look`: tool output no longer truncates long lines; they wrap, and `ctrl+o` shows everything. Leading/trailing blank lines are trimmed (no dangling `⎿`). The call line shows only the tool name until its argument has streamed in (no more `Update(.)`).
+- `todo`: the tool result is a one-line summary (`1/3 done · ◼ task`) instead of repeating the widget; `ctrl+o` expands to the full list.
+- `plan-mode`: the plan is rendered as Markdown, and the approval result is a short wrapped line instead of a truncated one.
+- `provider-statusline`: the primary line degrades by priority on narrow terminals (shorter bars, then no bars, then drops 7d, thinking level, ...) so the reset countdown is not cut off.
+- `git-checkpoint`: `/rewind` rows show how many files restoring would change now, not the number of files in the snapshot (which was 0 for checkpoints taken before an edit).
+
 ## [0.1.0]
 
 First release as an installable Pi package.

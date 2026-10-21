@@ -45,7 +45,7 @@ Nothing to run. `ctrl+o` expands folded tool output.
 - Spinner `· ✢ ✳ ✶ ✻ ✽` (ping-pong, teal `#53e0e0` so it is distinct from Claude Code's orange, 120ms) and a rotating verb per turn ("Pondering…").
 - Hidden-thinking label `✻ Thinking…`.
 - Markdown transformer: `⏺ ` before the first line of assistant text, `❯ ` before user text (a bare `>` would become a blockquote, and Pi shows `\>` escapes literally). Headings, lists, tables, quotes and code fences are left untouched.
-- Tool renderer (`renderShell: "self"`) for bash, read, edit, write, grep, find, ls: `⏺ Name(arg)` then `  ⎿  ` result lines, collapsed to 3 lines plus `… +N lines (ctrl+o to expand)`. Edit shows Pi's diff with green/red line backgrounds. Other tools fall back to `next()`.
+- Tool renderer (`renderShell: "self"`) for bash, read, edit, write, grep, find, ls: `⏺ Name(arg)` then `  ⎿  ` result lines, collapsed to 3 source lines plus `… +N lines (ctrl+o to expand)`. Long lines wrap (never truncate), so `ctrl+o` shows everything. Edit shows Pi's diff with green/red line backgrounds. Other tools fall back to `next()`.
 - Header: rounded orange welcome box with cwd.
 - Theme `claude-dark` (`themes/claude-dark.json`): orange `#d77757` accent, neutral greys, lavender links/code, and terminal-default (`""`) tool backgrounds so tool output is not boxed. Tests validate the colour keys against Pi's theme schema.
 

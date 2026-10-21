@@ -68,3 +68,17 @@ test('plan call and result rendering', () => {
   assert.equal(stripAnsi(plan.formatPlanResult('User approved\nmore', {})[0]), '  ⎿  User approved');
   assert.equal(stripAnsi(plan.formatPlanResult('', { isPartial: true })[0]), '  ⎿  Waiting for approval…');
 });
+
+test('plan fallback body wraps instead of truncating; result is a short wrapped outcome', () => {
+  const body = plan.formatPlanBody('word '.repeat(30).trim(), { width: 30 }).map(stripAnsi);
+  assert.ok(body.length > 3);
+  for (const l of body) assert.ok(visibleWidth(l) <= 30 && !l.includes('…'));
+  assert.equal(plan.planOutcome({ approved: true, mode: 'auto' }, 'long model text'), 'Plan approved · executing');
+  assert.equal(plan.planOutcome({ approved: true, mode: 'ask' }, 'x'), 'Plan approved · asking before each change');
+  assert.equal(plan.planOutcome({ approved: false, feedback: 'add tests' }, 'x'), 'Still planning · add tests');
+  assert.equal(plan.planOutcome({ approved: false, isError: true }, 'Not in plan mode\nmore'), 'Not in plan mode');
+  const narrow = plan.formatPlanResult('', { details: { approved: false, feedback: 'a long piece of feedback text' }, width: 24 }).map(stripAnsi);
+  assert.ok(narrow.length > 1);
+  assert.ok(narrow[1].startsWith('     '));
+  for (const l of narrow) assert.ok(visibleWidth(l) <= 24);
+});

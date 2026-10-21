@@ -104,3 +104,47 @@ test('claude-dark theme has all required keys and no unknown ones', () => {
     assert.ok(v === '' || v.startsWith('#') || vars.includes(v), `${k}: bad ref ${v}`);
   }
 });
+
+test('wrapAnsi wraps at spaces, hard-breaks, handles wide chars and carries colour', () => {
+  const { wrapAnsi } = require('../ansi.js');
+  assert.deepEqual(wrapAnsi('aaa bbb ccc', 7).map(stripAnsi), ['aaa bbb', 'ccc']);
+  assert.deepEqual(wrapAnsi('abcdefghij', 4).map(stripAnsi), ['abcd', 'efgh', 'ij']);
+  const wide = wrapAnsi('日本語日本語', 6).map(stripAnsi);
+  assert.deepEqual(wide, ['日本語', '日本語']);
+  const coloured = wrapAnsi(`\u001b[31m${'word '.repeat(10)}\u001b[39m`, 12);
+  assert.ok(coloured.length > 1);
+  for (const r of coloured) { assert.ok(visibleWidth(r) <= 12); assert.ok(r.startsWith('\u001b[31m')); }
+  assert.equal(stripAnsi(coloured.join(' ')).replace(/\s+/g, ' ').trim(), 'word '.repeat(10).trim());
+});
+
+test('long result lines wrap instead of truncating, collapsed and expanded', () => {
+  const long = 'The quick brown fox jumps over the lazy dog. '.repeat(4).trim();
+  const run = (o) => tools.formatTextResult(long, { width: 40, ...o }).map(stripAnsi);
+  for (const expanded of [false, true]) {
+    const rows = run({ expanded });
+    assert.ok(rows.length > 3);
+    assert.ok(rows[0].startsWith('  ⎿  ') && rows[1].startsWith('     '));
+    for (const r of rows) assert.ok(visibleWidth(r) <= 40);
+    assert.ok(!rows.join('').includes('…'));
+    assert.equal(rows.map((r) => r.slice(5)).join(' ').replace(/\s+/g, ' ').trim(), long);
+  }
+});
+
+test('collapsed fold counts source lines and wraps within the 3-line budget', () => {
+  const text = ['x'.repeat(100), 'b', 'c', 'd', 'e'].join('\n');
+  const rows = tools.formatTextResult(text, { width: 40 }).map(stripAnsi);
+  assert.equal(rows[rows.length - 1], '     … +2 lines (ctrl+o to expand)');
+  assert.ok(rows.join('\n').includes('c'));
+});
+
+test('leading and trailing blank lines are trimmed (no dangling ⎿)', () => {
+  const rows = tools.formatTextResult('\n\n  \n> test\nok\n\n', { width: 80 }).map(stripAnsi);
+  assert.deepEqual(rows, ['  ⎿  > test', '     ok']);
+  assert.deepEqual(tools.formatTextResult('\n\n', {}).map(stripAnsi), ['  ⎿  (No content)']);
+});
+
+test('streaming call line shows only the name until the arg arrives', () => {
+  for (const t of ['edit', 'write', 'read', 'ls']) assert.equal(stripAnsi(tools.formatCallLine(t, {})), `⏺ ${tools.displayName(t)}`);
+  assert.equal(stripAnsi(tools.formatCallLine('bash', {})), '⏺ Bash');
+  assert.equal(stripAnsi(tools.formatCallLine('edit', { path: 'a.js' })), '⏺ Update(a.js)');
+});

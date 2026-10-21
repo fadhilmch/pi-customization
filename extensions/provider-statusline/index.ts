@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
-const { buildPrimaryItems, formatWorkspacePath, getProviderKind } = require("./format.js");
+const { fitPrimaryItems, formatWorkspacePath, getProviderKind } = require("./format.js");
 const { getSessionCostText } = require("./cost.js");
 const { loadQuotaSnapshotAsync, loadCodexQuota, normalizeHeaderQuota } = require("./quota.js");
 const { formatPullRequestLabel, loadPullRequest } = require("./git.js");
@@ -66,16 +66,20 @@ function getContextPct(ctx: ExtensionContext): number {
 type Config = ReturnType<typeof loadConfig>;
 type Quota = ReturnType<typeof normalizeHeaderQuota>;
 
-function makePrimaryLine(ctx: ExtensionContext, config: Config, quota: Quota): string {
+function makePrimaryLine(ctx: ExtensionContext, config: Config, quota: Quota, width: number): string {
   const kind = getProviderKind(ctx.model);
-  const items = buildPrimaryItems({
-    model: ctx.model,
-    thinkingLevel: ctx.thinkingLevel,
-    contextPct: getContextPct(ctx),
-    sessionCostText: config.cost ? getSessionCostText(ctx) : "",
-    quota: kind === "claude" || kind === "codex" ? quota : null,
-    show: config,
-  });
+  const items = fitPrimaryItems(
+    {
+      model: ctx.model,
+      thinkingLevel: ctx.thinkingLevel,
+      contextPct: getContextPct(ctx),
+      sessionCostText: config.cost ? getSessionCostText(ctx) : "",
+      quota: kind === "claude" || kind === "codex" ? quota : null,
+      show: config,
+    },
+    width,
+    { measure: visibleWidth },
+  );
 
   return items.map(colorPrimaryItem).join(` ${DIM}│${RESET} `);
 }
@@ -172,7 +176,7 @@ export default function providerStatusline(pi: ExtensionAPI) {
           const branch = footerData.getGitBranch?.();
           const quota = responseQuota ?? externalQuota;
           const lines = [
-            truncateToWidth(makePrimaryLine(ctx, config, quota), width),
+            truncateToWidth(makePrimaryLine(ctx, config, quota, width), width),
             truncateToWidth(
               makeSecondaryLine(ctx, config, width, branch, pullRequest, footerData.getExtensionStatuses?.()),
               width,
