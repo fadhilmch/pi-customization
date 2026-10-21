@@ -2,9 +2,9 @@
 
 Gives Pi a Claude-Code-like look. Pairs with `themes/claude-dark.json`. Does not touch the footer/statusline.
 
-- Spinner `· ✢ ✳ ✶ ✻ ✽` (ping-pong, orange, 120ms) and a rotating verb per turn ("Pondering…").
+- Spinner `· ✢ ✳ ✶ ✻ ✽` (ping-pong, teal `#53e0e0` so it is distinct from Claude Code's orange, 120ms) and a rotating verb per turn ("Pondering…").
 - Hidden-thinking label `✻ Thinking…`.
-- Markdown transformer: `⏺ ` before the first line of assistant text, `> ` before user text (written as `\>` so it is not parsed as a quote). Headings, lists, tables, quotes and code fences are left untouched.
+- Markdown transformer: `⏺ ` before the first line of assistant text, `❯ ` before user text (a bare `>` would become a blockquote, and Pi shows `\>` escapes literally). Headings, lists, tables, quotes and code fences are left untouched.
 - Tool renderer (`renderShell: "self"`) for bash, read, edit, write, grep, find, ls: `⏺ Name(arg)` then `  ⎿  ` result lines, collapsed to 3 lines plus `… +N lines (ctrl+o to expand)`. Edit shows Pi's diff with green/red line backgrounds. Other tools fall back to `next()`.
 - Header: rounded orange welcome box with cwd.
 

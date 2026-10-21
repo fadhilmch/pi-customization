@@ -15,8 +15,9 @@ function prefixFirstLine(markdown, prefix) {
 }
 
 const ASSISTANT_PREFIX = '⏺ ';
-// '\>' is a Markdown escape, so the user line shows a literal "> " and is not parsed as a quote.
-const USER_PREFIX = '\\> ';
+// '❯' instead of '>': a bare '>' would become a blockquote, and Pi's Markdown renderer
+// prints backslash escapes literally, so an escaped '\>' would show up as-is.
+const USER_PREFIX = '❯ ';
 
 function transformMarkdown(markdown, context = {}) {
   switch (context.messageType) {

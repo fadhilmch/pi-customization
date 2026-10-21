@@ -4,6 +4,7 @@ const ESC = '\u001b[';
 const RESET = `${ESC}0m`;
 const COLORS = {
   orange: '#d77757',
+  spinner: '#53e0e0', // teal, so Pi's spinner is distinct from Claude Code's orange
   success: '#4eba65',
   error: '#ff6b80',
   dim: '#808080',

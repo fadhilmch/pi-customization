@@ -9,11 +9,11 @@ const { transformMarkdown } = require('../markdown.js');
 const { renderHeader } = require('../header.js');
 const tools = require('../tools.js');
 
-test('spinner ping-pongs glyphs in orange at 120ms', () => {
+test('spinner ping-pongs glyphs in teal at 120ms', () => {
   assert.deepEqual(pingPong(['a', 'b', 'c']), ['a', 'b', 'c', 'b']);
   const frames = spinnerFrames().map(stripAnsi);
   assert.deepEqual(frames, ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢']);
-  assert.match(spinnerFrames()[1], /38;2;215;119;87/);
+  assert.match(spinnerFrames()[1], /38;2;83;224;224/);
   assert.equal(workingIndicator().intervalMs, 120);
   assert.equal(pickVerb(() => 0), 'Thinking…');
 });
@@ -21,7 +21,7 @@ test('spinner ping-pongs glyphs in orange at 120ms', () => {
 test('markdown transformer prefixes paragraphs only', () => {
   assert.equal(transformMarkdown('Hello\nworld', { messageType: 'assistant' }), '⏺ Hello\nworld');
   assert.equal(transformMarkdown('\n\nHi', { messageType: 'assistant' }), '\n\n⏺ Hi');
-  assert.equal(transformMarkdown('Hi', { messageType: 'user' }), '\\> Hi');
+  assert.equal(transformMarkdown('Hi', { messageType: 'user' }), '❯ Hi');
   for (const s of ['```js\ncode\n```', '# Title', '- item', '1. one', '> quote', '| a | b |', '    indented']) {
     assert.equal(transformMarkdown(s, { messageType: 'assistant' }), s);
   }

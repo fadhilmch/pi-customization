@@ -12,7 +12,7 @@ function pingPong(list) {
   return [...list, ...list.slice(1, -1).reverse()];
 }
 
-function spinnerFrames(color = COLORS.orange) {
+function spinnerFrames(color = COLORS.spinner) {
   return pingPong(GLYPHS).map((g) => fg(color, g));
 }
 
