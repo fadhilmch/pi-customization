@@ -76,17 +76,20 @@ export default function (pi: ExtensionAPI) {
       renderShell: "self",
       exposure,
 
-      async execute(_id: string, params: any, signal: any) {
+      async execute(_id: string, params: any, signal: any, _onUpdate: any, ctx: any) {
+        let outputCap = 12000;
         try {
-          const { config } = loadConfig();
+          const { config } = loadConfig({ cwd: ctx?.cwd });
+          outputCap = config.maxChars;
           const results = await searchWeb(params.query, config, process.env, globalThis.fetch, params.maxResults, signal);
           const fullText = results.length
             ? results.map((r: any, i: number) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n")
             : "No search results.";
           const capped = await capText(fullText, config.maxChars);
-          return { content: [{ type: "text", text: capped.text }], details: { count: results.length, truncated: capped.truncated } };
+          return { content: [{ type: "text", text: capped.text }], details: { count: results.length, truncated: capped.truncated, fullOutputPath: capped.file } };
         } catch (error: any) {
-          return { content: [{ type: "text", text: `Web search failed: ${String(error.message || error).slice(0, 12000)}` }], details: { error: String(error.message || error).slice(0, 12000) }, isError: true };
+          const capped = await capText(`Web search failed: ${String(error.message || error)}`, outputCap);
+          return { content: [{ type: "text", text: capped.text }], details: { error: true, truncated: capped.truncated, fullOutputPath: capped.file }, isError: true };
         }
       },
 
@@ -119,9 +122,11 @@ export default function (pi: ExtensionAPI) {
     pi.on("session_start", async (_event: any, ctx: any) => {
       const active = pi.getActiveTools();
       const names = new Set(pi.getAllTools?.().map((tool: any) => tool.name) || []);
-      const fallback = names.has("tool_search") ? "tool_search" : "web_fetch";
-      if (!active.includes(fallback)) pi.setActiveTools([...active, fallback]);
-      if (!notified && ctx?.hasUI) ctx.ui.notify(names.has("tool_search") ? "Web tools are deferred; tool_search was activated so they can still be discovered." : "tool_search is unavailable; web_fetch was activated directly.", "info");
+      const fallback = names.has("tool_search") ? ["tool_search"] : ["web_fetch", ...(searchEnabled && names.has("web_search") ? ["web_search"] : [])];
+      const next = [...active];
+      for (const name of fallback) if (!next.includes(name)) next.push(name);
+      if (next.length !== active.length) pi.setActiveTools(next);
+      if (!notified && ctx?.hasUI) ctx.ui.notify(names.has("tool_search") ? "Web tools are deferred; tool_search was activated so they can still be discovered." : `tool_search is unavailable; ${fallback.join(" and ")} activated directly.`, "info");
       notified = true;
     });
   }

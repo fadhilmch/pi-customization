@@ -73,6 +73,21 @@ test('web tools can be deferred and fallback directly when tool_search is absent
   assert.ok(!active.includes('tool_search'));
 });
 
+test('deferred fallback activates both web tools when search is configured', async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'web-deferred-search-'));
+  const prevDir = process.env.PI_CODING_AGENT_DIR; const prevKey = process.env.MY_SEARCH_KEY;
+  process.env.PI_CODING_AGENT_DIR = home; process.env.MY_SEARCH_KEY = 'test-key';
+  fs.writeFileSync(path.join(home, 'web.json'), JSON.stringify({ exposure: 'deferred', search: { apiKeyEnv: 'MY_SEARCH_KEY' } }));
+  t.after(() => { if (prevDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = prevDir; if (prevKey === undefined) delete process.env.MY_SEARCH_KEY; else process.env.MY_SEARCH_KEY = prevKey; fs.rmSync(home, { recursive: true, force: true }); });
+  const registered = {}; const handlers = {}; const active = ['read'];
+  const pi = { registerTool: (tool) => { registered[tool.name] = tool; }, registerCommand() {}, on: (name, fn) => { (handlers[name] ||= []).push(fn); }, getActiveTools: () => active.slice(), getAllTools: () => Object.keys(registered).map((name) => ({ name })), setActiveTools: (next) => active.splice(0, active.length, ...next) };
+  loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
+  await handlers.session_start[0]({}, { hasUI: false });
+  assert.ok(active.includes('web_fetch'));
+  assert.ok(active.includes('web_search'));
+  assert.ok(!active.includes('tool_search'));
+});
+
 test('web_search registers only when the user-configured API key exists and never returns it', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'web-search-home-'));
   const envBefore = process.env.PI_CODING_AGENT_DIR;
@@ -99,4 +114,31 @@ test('web_search registers only when the user-configured API key exists and neve
     else process.env.PI_CODING_AGENT_DIR = envBefore;
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('web_search applies project output caps to success and error envelopes', async (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'web-search-cap-home-'));
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'web-search-cap-project-'));
+  const prevDir = process.env.PI_CODING_AGENT_DIR; const prevKey = process.env.MY_SEARCH_KEY; const prevFetch = globalThis.fetch;
+  process.env.PI_CODING_AGENT_DIR = home; process.env.MY_SEARCH_KEY = 'test-key';
+  fs.writeFileSync(path.join(home, 'web.json'), JSON.stringify({ maxChars: 12000, search: { apiKeyEnv: 'MY_SEARCH_KEY' } }));
+  fs.mkdirSync(path.join(project, '.pi'));
+  fs.writeFileSync(path.join(project, '.pi', 'web.json'), JSON.stringify({ maxChars: 500 }));
+  t.after(() => { globalThis.fetch = prevFetch; if (prevDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = prevDir; if (prevKey === undefined) delete process.env.MY_SEARCH_KEY; else process.env.MY_SEARCH_KEY = prevKey; fs.rmSync(home, { recursive: true, force: true }); fs.rmSync(project, { recursive: true, force: true }); });
+  const registered = {};
+  const pi = { registerTool: (tool) => { registered[tool.name] = tool; }, registerCommand() {}, on() {} };
+  loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
+  globalThis.fetch = async () => new Response(JSON.stringify({ web: { results: Array.from({ length: 5 }, (_, i) => ({ title: `Docs ${i}`, url: `https://docs.test/${i}`, description: 'S'.repeat(200) })) } }), { status: 200 });
+  const success = await registered.web_search.execute('id', { query: 'docs' }, undefined, undefined, { cwd: project });
+  assert.ok(success.content[0].text.length <= 500, 'project maxChars applies to successful results');
+  assert.equal(success.details.truncated, true);
+
+  globalThis.fetch = async () => { throw new Error('E'.repeat(5000)); };
+  const failure = await registered.web_search.execute('id', { query: 'docs' }, undefined, undefined, { cwd: project });
+  assert.ok(failure.content[0].text.length <= 500, 'error envelope fits the project cap');
+  assert.equal(failure.details.truncated, true);
+  assert.ok(failure.details.fullOutputPath);
+  assert.ok(!JSON.stringify(failure.details).includes('E'.repeat(100)));
+  fs.rmSync(path.dirname(success.details.fullOutputPath), { recursive: true, force: true });
+  fs.rmSync(path.dirname(failure.details.fullOutputPath), { recursive: true, force: true });
 });
