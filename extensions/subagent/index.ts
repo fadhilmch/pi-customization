@@ -2,10 +2,11 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const path = require("node:path");
-const { discoverAgents, describeAgent } = require("./agents.js");
+const { discoverAgents, describeAgent, applyOverrides } = require("./agents.js");
 const { loadConfig } = require("./config.js");
 const { executeSubagent } = require("./dispatch.js");
 const { formatCallLine, formatResult } = require("./render.js");
+const { agentsPanel, MAX_WIDTH: PANEL_WIDTH } = require("./panel.js");
 
 // Minimal Component: Pi's TUI only needs render(width) and invalidate().
 function lines(produce: (width: number) => string[]) {
@@ -104,11 +105,31 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("agents", {
     description: "List subagents (bundled, ~/.pi/agent/agents, trusted .pi/agents)",
     handler: async (_args: string, ctx: any) => {
-      const { agents, errors, projectSkipped, projectDir } = discover(ctx);
-      const rows = agents.map(describeAgent);
-      if (projectSkipped) rows.push(`(project agents in ${projectDir} not loaded: project is not trusted)`);
-      for (const e of errors) rows.push(`! ${e}`);
-      ctx.ui.notify(rows.length ? `Subagents:\n${rows.join("\n")}` : "No subagents found.", "info");
+      const { config, file } = loadConfig();
+      const found = discover(ctx);
+      const agents = found.agents.map((a: any) => applyOverrides(a, config)); // show the model that will actually run
+      if (ctx.mode !== "tui") {
+        const rows = agents.map(describeAgent);
+        if (found.projectSkipped) rows.push(`(project agents in ${found.projectDir} not loaded: project is not trusted)`);
+        for (const e of found.errors) rows.push(`! ${e}`);
+        return ctx.ui.notify(rows.length ? `Subagents:\n${rows.join("\n")}` : "No subagents found.", "info");
+      }
+      const data = { ...found, agents, configFile: file, userDir: path.join(path.dirname(file), "agents") };
+      // Runtime import from Pi; keeps this module loadable without it.
+      const { matchesKey } = await import("@earendil-works/pi-tui");
+      await ctx.ui.custom<void>(
+        (_tui: any, _theme: any, _kb: any, done: (v: void) => void) => ({
+          render: (width: number) => agentsPanel(data, width),
+          invalidate() {},
+          handleInput(input: string) {
+            if (input === "q" || matchesKey(input, "escape") || matchesKey(input, "return")) done();
+          },
+        }),
+        {
+          overlay: true,
+          overlayOptions: () => ({ width: Math.max(24, Math.min(PANEL_WIDTH, (process.stdout.columns || 80) - 4)), maxHeight: "90%" }),
+        },
+      );
     },
   });
 }

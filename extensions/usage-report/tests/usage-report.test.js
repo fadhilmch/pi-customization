@@ -132,3 +132,58 @@ test('index.ts registers /context and /cost and reports via notify', { skip: !ca
   await commands.cost.handler('', ctx);
   assert.match(notes.at(-1)[0], /No usage/);
 });
+
+test('panels: framed, fixed width, proportional bars', () => {
+  const { contextPanel, costPanel, stackedBar, bar, frame } = require('../panel.js');
+  const { stripAnsi, visibleWidth } = require('../ansi.js');
+  const strip = (ls) => ls.map(stripAnsi);
+
+  // Bars: proportional window bar, minCell for small cost splits, eighth-block precision.
+  assert.equal(stripAnsi(stackedBar([{ value: 1, color: '#ffffff' }, { value: 1, color: '#ffffff' }], 100, 10)), '··········'.replace(/^./, '█'));
+  assert.equal(stripAnsi(stackedBar([{ value: 50, color: '#ffffff' }, { value: 25, color: '#ffffff' }], 100, 8)), '██████··');
+  assert.equal(stripAnsi(stackedBar([{ value: 99, color: '#ffffff' }, { value: 1, color: '#ffffff' }], 100, 10, { minCell: true })), '██████████');
+  assert.equal(stripAnsi(bar(0.5, 4, '#ffffff')), '██··');
+  assert.equal(stripAnsi(bar(0.0625, 2, '#ffffff')), '▏·');
+  assert.deepEqual(strip(frame('T', ['x'], 26)), ['╭─ T ────────────────────╮', '│ x                      │', '╰──────────── esc close ─╯']);
+
+  const report = buildContext({
+    systemPrompt: 'x'.repeat(4000),
+    tools: [{ name: 'subagent', description: 'd'.repeat(2400) }, { name: 'read', description: 'r'.repeat(400) }],
+    messages: [
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: [call('1', 'subagent', { tasks: [{ agent: 'scout', task: 'a' }, { agent: 'scout', task: 'b' }] })] },
+      { role: 'toolResult', toolCallId: '1', toolName: 'subagent', content: [{ type: 'text', text: 'z'.repeat(8000) }] },
+    ],
+    usage: { tokens: 4000, contextWindow: 200000, percent: 2 },
+  });
+  for (const w of [60, 84, 140]) {
+    const lines = contextPanel(report, w);
+    assert.ok(lines.every((l) => visibleWidth(l) === Math.min(w, 84)), `context width ${w}`);
+  }
+  const text = strip(contextPanel(report, 100)).join('\n');
+  assert.match(text, /4\.0k of 200k tokens \(2\.0%, reported by the provider\)/);
+  assert.match(text, /subagent parallel: scout ×2/);
+  assert.match(text, /Tool results are over half/);
+  // 2% of an 80-cell bar is 2 cells, not one per category.
+  const windowBar = strip(contextPanel(report, 84))[2];
+  assert.equal((windowBar.match(/█/g) || []).length, 2);
+
+  const branch = [
+    msg('1', { role: 'assistant', provider: 'p', model: 'big', usage: { input: 1000, output: 100, cacheRead: 3000, cacheWrite: 0, cost: { total: 0.03 } } }),
+    msg('2', { role: 'toolResult', toolName: 'subagent', details: { runs: [{ agent: 'scout', model: 'p/small', usage: { input: 4000, output: 50, cost: 0.01 } }] } }),
+  ];
+  const cost = strip(costPanel(aggregate(branch), 84)).join('\n');
+  assert.match(cost, /\$0\.040 this branch \(main \$0\.030 · subagents \$0\.010\)/);
+  assert.match(cost, /p\/big\s+\$0\.030\s+75\.0%/);
+  assert.match(cost, /scout \(p\/small\)\s+\$0\.010\s+25\.0%/);
+  assert.match(cost, /Cache reads\s+37\.5%/); // 3000 / (1000 + 4000 + 3000)
+  assert.ok(costPanel(aggregate(branch), 70).every((l) => visibleWidth(l) === 70));
+  assert.match(strip(costPanel(aggregate([]), 84)).join('\n'), /No usage recorded/);
+});
+
+test('describeCall names subagent calls', () => {
+  const { describeCall } = require('../messages.js');
+  assert.equal(describeCall(call('1', 'subagent', { chain: [{ agent: 'scout' }, { agent: 'worker' }] })), 'chain: scout → worker');
+  assert.equal(describeCall(call('1', 'subagent', { agent: 'scout', task: 'find x' })), 'scout: find x');
+  assert.equal(describeCall(call('1', 'bash', { command: 'ls  -la' })), 'ls -la');
+});
