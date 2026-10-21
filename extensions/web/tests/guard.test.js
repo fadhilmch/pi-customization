@@ -36,3 +36,38 @@ test('URL guard applies blocked and allowed domain lists including subdomains', 
   await assert.rejects(isAllowedUrl('https://example.com', { allowedDomains: ['docs.test'] }, publicLookup), /not in allowed/);
   assert.equal((await isAllowedUrl('https://a.docs.test', { allowedDomains: ['docs.test'] }, publicLookup)).hostname, 'a.docs.test');
 });
+
+test('URL-form tricks for loopback and metadata hosts are rejected', async () => {
+  const urls = [
+    'http://2130706433/', 'http://0x7f000001/', 'http://0177.0.0.1/', 'http://127.1/', 'http://localhost./', 'http://app.localhost/',
+    'http://[::ffff:127.0.0.1]/', 'http://[::127.0.0.1]/', 'http://[::7f00:1]/', 'http://[64:ff9b::7f00:1]/', 'http://[2002:7f00:1::]/',
+    'http://[::ffff:169.254.169.254]/', 'http://[64:ff9b::a9fe:a9fe]/', 'http://[2002:a9fe:a9fe::1]/', 'http://2852039166/',
+  ];
+  for (const url of urls) await assert.rejects(isAllowedUrl(url, {}, publicLookup), /private|link-local/, url);
+  for (const url of ['http://2852039166/', 'http://[::ffff:169.254.169.254]/', 'http://[64:ff9b::a9fe:a9fe]/', 'http://[2002:a9fe:a9fe::1]/']) {
+    await assert.rejects(isAllowedUrl(url, { allowPrivate: true }, publicLookup), /link-local/, url);
+  }
+});
+
+test('allowPrivate still blocks 0.0.0.0/8 and the unspecified IPv6 address', async () => {
+  for (const url of ['http://0.0.0.0/', 'http://0/', 'http://0.1.2.3/', 'http://[::]/', 'http://[::0.0.0.0]/']) {
+    await assert.rejects(isAllowedUrl(url, { allowPrivate: true }, publicLookup), /unspecified/, url);
+  }
+  await assert.rejects(isAllowedUrl('http://host.test/', { allowPrivate: true }, async () => [{ address: '0.0.0.0' }]), /unspecified/);
+  assert.equal((await isAllowedUrl('http://127.0.0.1/', { allowPrivate: true }, publicLookup)).hostname, '127.0.0.1');
+  assert.equal((await isAllowedUrl('http://[::1]/', { allowPrivate: true }, publicLookup)).hostname, '[::1]');
+});
+
+test('shared, multicast and broadcast ranges count as private', async () => {
+  for (const address of ['100.64.0.1', '100.127.255.254', '192.0.0.8', '224.0.0.1', '239.255.255.250', '255.255.255.255', 'ff02::1', 'fec0::1', '::2']) {
+    await assert.rejects(isAllowedUrl('http://host.test/', {}, async () => [{ address }]), /private|unspecified/, address);
+    if (address !== '::2') await isAllowedUrl('http://host.test/', { allowPrivate: true }, async () => [{ address }]);
+  }
+  for (const address of ['100.63.255.255', '100.128.0.1', '192.0.2.1', '2001:db8::1', '2606:4700::1111', '64:ff9b::808:808', '2002:808:808::1']) {
+    await isAllowedUrl('http://host.test/', {}, async () => [{ address }]);
+  }
+});
+
+test('any private address among several DNS answers rejects the host', async () => {
+  await assert.rejects(isAllowedUrl('http://host.test/', {}, async () => [{ address: '203.0.113.2' }, { address: '10.0.0.1' }]), /private/);
+});
