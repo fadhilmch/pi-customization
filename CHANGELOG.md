@@ -17,6 +17,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- `git-checkpoint`: a same-size edit made in the same second as the last index write could be missing from the checkpoint, so `/rewind` restored the older content. The temporary index copy now keeps the original index mtime, so git's racy-entry check still rehashes such files. This was the intermittent `index.test.js` CI failure.
 - Demo sandbox pointed at the old `themes/claude-dark.json` path, so recordings fell back to the default theme.
 
 ## [0.1.0] - 2026-10-21
