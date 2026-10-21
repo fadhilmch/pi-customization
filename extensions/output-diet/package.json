@@ -1,0 +1,37 @@
+{
+  "name": "@fadhilmch/pi-output-diet",
+  "version": "0.1.0",
+  "description": "Cuts tokens from noisy tool output: folds long bash logs to head, error lines and tail (full text saved to a file) and replaces repeated identical reads with a short note.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "tokens",
+    "bash-output",
+    "context"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/output-diet"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/output-diet#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "README.md"
+  ]
+}

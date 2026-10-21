@@ -243,3 +243,27 @@ test('format helpers', () => {
   assert.match(text, /not touched/);
   assert.match(fmt.describePlan({ write: [], remove: [] }), /already matches/);
 });
+
+// Racy git: a same-size edit with the same mtime as the index entry is only caught because git rehashes
+// entries whose mtime is not older than the index file. The snapshot's temporary index copy must keep the
+// original index mtime, or the edit is silently missing from the checkpoint (flaky CI before the fix).
+test('checkpoint catches a same-size edit in the same second as the last index write', async () => {
+  const dir = makeRepo();
+  try {
+    sh(dir, 'config', 'core.trustctime', 'false'); // ctime cannot be set; take it out so only mtime/size decide
+    const T = Math.floor(Date.now() / 1000) - 60; // whole seconds: no sub-second mismatch
+    const file = path.join(dir, 'a.txt');
+    fs.utimesSync(file, T, T);
+    sh(dir, 'add', 'a.txt'); // index entry now records mtime T
+    w(dir, 'a.txt', 'a9\n'); // same size as 'a1\n'
+    fs.utimesSync(file, T, T);
+    const index = sh(dir, 'rev-parse', '--git-path', 'index').trim();
+    fs.utimesSync(path.resolve(dir, index), T, T); // index written "in the same second"
+
+    const res = await ck.createCheckpoint(dir, { session: 's', prompt: 'p' });
+    assert.equal(res.status, 'created');
+    assert.equal(sh(dir, 'show', `${res.checkpoint.ref}:a.txt`), 'a9\n');
+  } finally {
+    rm(dir);
+  }
+});
