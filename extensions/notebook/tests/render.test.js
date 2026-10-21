@@ -24,7 +24,7 @@ test('renders markdown and code cells with source, cell ranges and footer', () =
 });
 
 test('renders stream output caps, image placeholders, HTML fallback, and error tails', () => {
-  const many = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+  const many = Array.from({ length: 30 }, (_, i) => `line ${i + 1}\n`);
   const text = renderNotebook(nb([
     code('print(1)', [
       { output_type: 'stream', name: 'stdout', text: many },
@@ -65,4 +65,53 @@ test('fixture files parse and render without exposing image payloads', () => {
     assert.match(text, /Notebook:/);
     assert.doesNotMatch(text, /iVBORw0KGgo/);
   }
+});
+
+test('strips ANSI from streams, text/plain, ename and evalue', () => {
+  const text = renderNotebook(nb([code('x', [
+    { output_type: 'stream', name: 'stderr', text: ['\u001b[31mred\u001b[0m\n'] },
+    { output_type: 'execute_result', data: { 'text/plain': '\u001b[1mbold\u001b[0m' }, metadata: {} },
+    { output_type: 'error', ename: '\u001b[31mE\u001b[0m', evalue: '\u001b[31mbad\u001b[0m', traceback: [] },
+  ])]));
+  assert.doesNotMatch(text, /\u001b/);
+  assert.match(text, /red/); assert.match(text, /bold/); assert.match(text, /E: bad/);
+});
+
+test('offset beyond the last cell and non-positive limits give clear messages', () => {
+  const book = nb([code('a'), code('b'), code('c')]);
+  const beyond = renderNotebook(book, { from: 99 });
+  assert.match(beyond, /Offset 99 is beyond the last cell \(3 cells\)/);
+  assert.doesNotMatch(beyond, /\[3\]/);
+  assert.match(renderNotebook(book, { from: 2, limit: 0 }), /Limit must be at least 1/);
+  assert.doesNotMatch(renderNotebook(book, { from: 2, limit: 0 }), /\[2\]/);
+  assert.match(renderNotebook(book, { from: -4, limit: 1 }), /showing 1–1 of 3/);
+  assert.match(renderNotebook(nb([])), /0 cells \(showing 0 of 0\)/);
+});
+
+test('multiline strings join without extra newlines', () => {
+  const text = renderNotebook(nb([code('x', [{ output_type: 'stream', name: 'stdout', text: ['a\n', 'b'] }, { output_type: 'stream', name: 'stdout', text: ['ab', 'cd'] }])]));
+  assert.match(text, /   a\n   b/);
+  assert.match(text, /   abcd/);
+});
+
+test('json, svg, markdown and latex outputs, ids on all cells, fences and languages', () => {
+  const text = renderNotebook({ cells: [
+    { cell_type: 'markdown', id: 'mdid0001', metadata: {}, source: ['hi'] },
+    { cell_type: 'raw', id: 'rawid001', metadata: {}, source: ['raw'] },
+    code('print("```")', [
+      { output_type: 'display_data', data: { 'application/json': { a: 1 }, 'image/svg+xml': ['<svg>', '</svg>'] }, metadata: {} },
+      { output_type: 'display_data', data: { 'text/markdown': ['**md**'], 'text/latex': '$x$' }, metadata: {} },
+      { output_type: 'display_data', data: { 'text/latex': '$y$' }, metadata: {} },
+    ]),
+  ], metadata: { language_info: { name: 'julia' } }, nbformat: 4, nbformat_minor: 5 });
+  assert.match(text, /\[1\] markdown · id=mdid0001/);
+  assert.match(text, /\[2\] raw · id=rawid001/);
+  assert.match(text, /````julia\nprint\("```"\)\n````/);
+  assert.match(text, /application\/json \{"a":1\}/);
+  assert.match(text, /\[image\/svg\+xml 11 bytes omitted\]/);
+  assert.match(text, /text\/markdown\n   \*\*md\*\*/);
+  assert.match(text, /text\/latex\n   \$y\$/);
+  assert.doesNotMatch(text, /\$x\$/);
+  assert.doesNotMatch(text, /object Object/);
+  assert.match(renderNotebook({ cells: [code('1')], metadata: {} , nbformat: 4}), /```\n1\n```/);
 });
