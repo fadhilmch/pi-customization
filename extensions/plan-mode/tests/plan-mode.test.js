@@ -33,6 +33,8 @@ test('tool sets', () => {
   assert.deepEqual(plan.planTools(['read', 'bash', 'edit', 'write', 'todo']), ['read', 'bash', 'todo', 'exit_plan_mode']);
   assert.deepEqual(plan.planTools(['read', 'exit_plan_mode']), ['read', 'exit_plan_mode']);
   assert.deepEqual(plan.restoredTools(['read', 'edit'], ['read']), ['read', 'edit']);
+  // ask_user (read-only) must survive planning so the model can ask before proposing a plan.
+  assert.ok(plan.planTools(['read', 'ask_user', 'write']).includes('ask_user'));
   assert.deepEqual(plan.restoredTools(undefined, ['read', 'exit_plan_mode']), ['read']);
 });
 
