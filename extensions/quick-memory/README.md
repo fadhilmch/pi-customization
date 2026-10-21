@@ -36,8 +36,10 @@ From npm (once published): `pi install npm:@fadhilmch/pi-quick-memory`. See the 
 
 A picker asks where to save it:
 
-- **Project**: `AGENTS.md` in the current directory
-- **User**: `AGENTS.md` in Pi's agent directory (`~/.pi/agent`, or `$PI_CODING_AGENT_DIR`)
+- **Project**: the instruction file in the current directory
+- **User**: the instruction file in Pi's agent directory (`~/.pi/agent`, or `$PI_CODING_AGENT_DIR`)
+
+Pi reads only the first of `AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, `CLAUDE.MD` that exists in a directory, so the note goes to that same file. `AGENTS.md` is created only when none of them exists.
 
 The file is created if missing, the note is added as `- note`, and a notification says where it went. Escape cancels and puts your text back in the editor. Pi reads `AGENTS.md` on the next session start or `/reload`.
 
@@ -70,7 +72,7 @@ Safety and cost: the only thing written is the text you typed, to one of two fix
 - Works only for text typed in the terminal UI. In print, JSON and RPC modes, and for messages from other extensions, `# ...` is sent as an ordinary prompt.
 - Prompts with attached images are never intercepted.
 - Notes are appended at the end of the file; edit it by hand to organise them. A new file starts with a `## Notes` heading.
-- The project file is `AGENTS.md` in the directory Pi was started in, not the git root. If your project only has a `CLAUDE.md`, a new `AGENTS.md` is created next to it; Pi can load either file, but the notes will not be in `CLAUDE.md`.
+- The project file is looked up in the directory Pi was started in, not the git root. If that directory has only a `CLAUDE.md`, notes go into it; a new `AGENTS.md` is created only when no candidate exists.
 - No duplicate check and no undo; edit the file by hand to remove a note.
 - A one-line prompt that really starts with `# ` (a markdown heading) is taken as a note; write `#` after a word or use `##` to avoid it.
 - Tested with unit tests only (note parsing, file creation and appending, with an injected file system, and the `input` handler against a fake Pi). The interactive `#` input hook has not been checked in a live TUI session, so whether Pi hands the extension the editor text exactly as typed, and how the picker looks, is unverified.
