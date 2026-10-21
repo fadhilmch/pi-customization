@@ -1,8 +1,30 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { search, normalizeResults } = require('../search.js');
+const exa = require('../providers/exa.js');
 const brave = require('../providers/brave.js');
 const tavily = require('../providers/tavily.js');
+
+test('Exa provider posts query, result count and highlights with the x-api-key header', async () => {
+  let request;
+  const fetch = async (url, init) => {
+    request = { url, init };
+    return new Response(JSON.stringify({ results: [
+      { title: 'Agent Framework overview', url: 'https://learn.microsoft.com/agent-framework/', highlights: ['Build agents', 'with tools'] },
+      { title: 'No highlights', url: 'https://docs.test/b', summary: 'A summary' },
+    ] }), { status: 200 });
+  };
+  const results = await exa({ query: 'agent framework', count: 3, apiKey: 'secret', fetch });
+  assert.equal(request.url, 'https://api.exa.ai/search');
+  assert.deepEqual(JSON.parse(request.init.body), { query: 'agent framework', numResults: 3, type: 'auto', contents: { highlights: true } });
+  assert.equal(request.init.headers['x-api-key'], 'secret');
+  assert.equal(request.init.redirect, 'error');
+  assert.deepEqual(results, [
+    { title: 'Agent Framework overview', url: 'https://learn.microsoft.com/agent-framework/', snippet: 'Build agents … with tools' },
+    { title: 'No highlights', url: 'https://docs.test/b', snippet: 'A summary' },
+  ]);
+  await assert.rejects(exa({ query: 'x', count: 1, apiKey: 'k', fetch: async () => new Response('', { status: 402 }) }), /Exa account is out of credits/);
+});
 
 test('Brave provider sends documented endpoint, count and token header then normalizes results', async () => {
   let request;

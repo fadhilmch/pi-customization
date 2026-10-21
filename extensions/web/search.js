@@ -1,9 +1,10 @@
 'use strict';
+const exa = require('./providers/exa.js');
 const brave = require('./providers/brave.js');
 const tavily = require('./providers/tavily.js');
 const { stripHtml } = require('./providers/common.js');
 
-const PROVIDERS = { brave, tavily };
+const PROVIDERS = { exa, brave, tavily };
 
 function normalizeResults(input, maxResults = 5) {
   const out = [];
@@ -26,9 +27,10 @@ function normalizeResults(input, maxResults = 5) {
 
 async function search(query, config, env = process.env, fetch = globalThis.fetch, maxResults, signal) {
   const cfg = config.search || {};
-  const apiKey = env[cfg.apiKeyEnv || 'BRAVE_API_KEY'];
-  if (!apiKey) throw new Error(`Set ${cfg.apiKeyEnv || 'BRAVE_API_KEY'} to enable web_search`);
-  const provider = PROVIDERS[cfg.provider || 'brave'];
+  const keyEnv = cfg.apiKeyEnv || 'EXA_API_KEY';
+  const apiKey = env[keyEnv];
+  if (!apiKey) throw new Error(`Set ${keyEnv} to enable web_search`);
+  const provider = PROVIDERS[cfg.provider || 'exa'];
   if (!provider) throw new Error(`Unknown web search provider: ${cfg.provider}`);
   const count = Math.min(10, Math.max(1, Math.floor(Number(maxResults) || cfg.maxResults || 5)));
   const timeout = AbortSignal.timeout(Math.max(1, Number(config.timeoutSeconds) || 20) * 1000);

@@ -10,8 +10,11 @@ const DEFAULTS = Object.freeze({
   allowPrivate: false,
   allowedDomains: [],
   blockedDomains: [],
-  search: { provider: 'brave', apiKeyEnv: 'BRAVE_API_KEY', maxResults: 5 },
+  search: { provider: 'exa', apiKeyEnv: 'EXA_API_KEY', maxResults: 5 },
 });
+
+// Each provider's usual key variable, used when apiKeyEnv is not set.
+const KEY_ENV = Object.freeze({ exa: 'EXA_API_KEY', brave: 'BRAVE_API_KEY', tavily: 'TAVILY_API_KEY' });
 
 function domainList(value) {
   return Array.isArray(value) ? [...new Set(value.filter((d) => typeof d === 'string' && d.trim()).map((d) => d.trim().toLowerCase().replace(/^\.+|\.+$/g, '')))] : [];
@@ -25,6 +28,7 @@ function bounded(value, fallback, min, max) {
 function parseConfig(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return structuredClone(DEFAULTS);
   const search = raw.search && typeof raw.search === 'object' ? raw.search : {};
+  const provider = Object.hasOwn(KEY_ENV, search.provider) ? search.provider : DEFAULTS.search.provider;
   return {
     maxChars: bounded(raw.maxChars, DEFAULTS.maxChars, 500, 50000),
     exposure: ['direct', 'deferred'].includes(raw.exposure) ? raw.exposure : DEFAULTS.exposure,
@@ -34,8 +38,8 @@ function parseConfig(raw) {
     blockedDomains: domainList(raw.blockedDomains),
     denyAllDomains: false,
     search: {
-      provider: ['brave', 'tavily'].includes(search.provider) ? search.provider : DEFAULTS.search.provider,
-      apiKeyEnv: typeof search.apiKeyEnv === 'string' && /^[A-Z_][A-Z0-9_]*$/.test(search.apiKeyEnv) ? search.apiKeyEnv : DEFAULTS.search.apiKeyEnv,
+      provider,
+      apiKeyEnv: typeof search.apiKeyEnv === 'string' && /^[A-Z_][A-Z0-9_]*$/.test(search.apiKeyEnv) ? search.apiKeyEnv : KEY_ENV[provider],
       maxResults: bounded(search.maxResults, DEFAULTS.search.maxResults, 1, 10),
     },
   };

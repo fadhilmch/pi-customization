@@ -50,7 +50,7 @@ test('web extension registers a bounded untrusted read-only tool and setup comma
     assert.deepEqual(Object.keys(commands), ['web']);
     const messages = [];
     await commands.web.handler('', { cwd: dir, ui: { notify: (message) => messages.push(message) } });
-    assert.match(messages[0], /set BRAVE_API_KEY to enable it/);
+    assert.match(messages[0], /set EXA_API_KEY to enable it/);
     assert.equal(handlers.session_shutdown.length, 1);
     const saved = await require('../output.js').capText('q'.repeat(600), 300);
     await handlers.session_shutdown[0]();
@@ -124,7 +124,7 @@ test('web_search applies project output caps to success and error envelopes', as
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'web-search-cap-project-'));
   const prevDir = process.env.PI_CODING_AGENT_DIR; const prevKey = process.env.MY_SEARCH_KEY; const prevFetch = globalThis.fetch;
   process.env.PI_CODING_AGENT_DIR = home; process.env.MY_SEARCH_KEY = 'test-key';
-  fs.writeFileSync(path.join(home, 'web.json'), JSON.stringify({ maxChars: 12000, search: { apiKeyEnv: 'MY_SEARCH_KEY' } }));
+  fs.writeFileSync(path.join(home, 'web.json'), JSON.stringify({ maxChars: 12000, search: { provider: 'brave', apiKeyEnv: 'MY_SEARCH_KEY' } }));
   fs.mkdirSync(path.join(project, '.pi'));
   fs.writeFileSync(path.join(project, '.pi', 'web.json'), JSON.stringify({ maxChars: 500 }));
   t.after(() => { globalThis.fetch = prevFetch; if (prevDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = prevDir; if (prevKey === undefined) delete process.env.MY_SEARCH_KEY; else process.env.MY_SEARCH_KEY = prevKey; fs.rmSync(home, { recursive: true, force: true }); fs.rmSync(project, { recursive: true, force: true }); });

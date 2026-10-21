@@ -3,13 +3,19 @@ const assert = require('node:assert/strict');
 const { mergeConfigs, parseConfig, loadConfig, agentDir } = require('../config.js');
 const { isAllowedUrl } = require('../guard.js');
 
-test('config clamps user values and defaults private access off with Brave first', () => {
+test('config clamps user values, defaults private access off and search to Exa', () => {
   const cfg = parseConfig({ maxChars: 999999, timeoutSeconds: 0, allowPrivate: true, search: { provider: 'brave' } });
   assert.equal(cfg.maxChars, 50000);
   assert.equal(cfg.timeoutSeconds, 1);
   assert.equal(cfg.allowPrivate, true);
   assert.equal(parseConfig(null).allowPrivate, false);
-  assert.equal(parseConfig(null).search.provider, 'brave');
+  assert.equal(parseConfig(null).search.provider, 'exa');
+  assert.equal(parseConfig(null).search.apiKeyEnv, 'EXA_API_KEY');
+  // Choosing a provider without apiKeyEnv uses that provider's usual variable.
+  assert.equal(parseConfig({ search: { provider: 'tavily' } }).search.apiKeyEnv, 'TAVILY_API_KEY');
+  assert.equal(cfg.search.apiKeyEnv, 'BRAVE_API_KEY');
+  assert.equal(parseConfig({ search: { provider: 'exa', apiKeyEnv: 'MY_EXA' } }).search.apiKeyEnv, 'MY_EXA');
+  assert.equal(parseConfig({ search: { provider: 'bing' } }).search.provider, 'exa');
   assert.equal(parseConfig(null).exposure, 'direct');
   assert.equal(parseConfig({ exposure: 'bogus' }).exposure, 'direct');
   assert.equal(parseConfig({ exposure: 'deferred' }).exposure, 'deferred');
@@ -22,7 +28,7 @@ test('project config can only tighten limits and domains', () => {
   assert.equal(cfg.timeoutSeconds, 20);
   assert.deepEqual(cfg.blockedDomains, ['bad.test']);
   assert.deepEqual(cfg.allowedDomains, ['docs.test']);
-  assert.equal(cfg.search.provider, 'brave');
+  assert.equal(cfg.search.provider, 'exa');
 });
 
 test('config loads user and project files from their supported locations', () => {

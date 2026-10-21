@@ -34,11 +34,11 @@ User config: `~/.pi/agent/web.json` (or `$PI_CODING_AGENT_DIR/web.json`):
   "allowPrivate": false,
   "allowedDomains": [],
   "blockedDomains": [],
-  "search": { "provider": "brave", "apiKeyEnv": "BRAVE_API_KEY", "maxResults": 5 }
+  "search": { "provider": "exa", "apiKeyEnv": "EXA_API_KEY", "maxResults": 5 }
 }
 ```
 
-Brave is the default provider. Set `BRAVE_API_KEY` to enable search, or set `provider` to `tavily` and `apiKeyEnv` to the environment variable holding that key. Keys are read from the process environment and are never returned to the model.
+Exa is the default provider: set `EXA_API_KEY` to enable search. `brave` and `tavily` also work; each reads its usual variable (`BRAVE_API_KEY`, `TAVILY_API_KEY`) unless `apiKeyEnv` names another one. Without a key, `web_search` is not registered and costs nothing. Keys are read from the process environment and are never returned to the model.
 
 A trusted project may add `.pi/web.json` to lower `maxChars` and `timeoutSeconds`, add blocked domains, and narrow `allowedDomains`. Project config cannot enable private hosts or change the search provider or key variable. Link-local and unspecified (`0.0.0.0/8`, `::`) addresses are always blocked.
 
