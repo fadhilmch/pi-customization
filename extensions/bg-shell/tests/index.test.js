@@ -17,7 +17,7 @@ function loadExtension(file) {
       Object: (properties) => ({ properties }), String: (options) => ({ type: 'string', ...options }),
       Integer: (options) => ({ type: 'integer', ...options }), Number: (options) => ({ type: 'number', ...options }),
       Optional: (schema) => ({ optional: true, ...schema }), Literal: (value) => ({ const: value }),
-      Union: (anyOf) => ({ anyOf }),
+      Union: (anyOf) => ({ anyOf }), Unsafe: (schema) => schema,
     } };
     if (id === '@earendil-works/pi-tui') return { matchesKey: (data, key) => key === 'escape' ? data === '\u001b' : data === '\r' };
     return originalLoad.call(this, id, parent, isMain);
@@ -70,4 +70,52 @@ test('exit notices appear on only the next pre-agent hook', async (t) => {
   assert.match(first.message.content, /exited with code 7/);
   assert.equal(second, undefined);
   await handlers.session_shutdown[0]();
+});
+
+function makePi(registered, handlers) {
+  return { registerTool: (tool) => { registered[tool.name] = tool; }, registerCommand() {}, on: (name, fn) => { (handlers[name] ||= []).push(fn); } };
+}
+function withAgentDir(t, prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const before = process.env.PI_CODING_AGENT_DIR; process.env.PI_CODING_AGENT_DIR = dir;
+  t.after(() => { if (before === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = before; fs.rmSync(dir, { recursive: true, force: true }); });
+  return dir;
+}
+
+test('parameters are one object schema with an action enum, and actions are validated', async (t) => {
+  const dir = withAgentDir(t, 'bg-shell-params-');
+  const registered = {}; const handlers = {};
+  loadExtension(path.join(__dirname, '..', 'index.ts'))(makePi(registered, handlers));
+  const schema = registered.bash_bg.parameters;
+  assert.ok(schema.properties, 'root schema is an object with properties');
+  assert.equal(schema.anyOf, undefined);
+  assert.deepEqual(schema.properties.action.enum, ['start', 'output', 'stop', 'list']);
+  const run = (params) => registered.bash_bg.execute('id', params, undefined, undefined, { cwd: dir });
+  for (const [params, message] of [[{ action: 'start' }, /start requires command/], [{ action: 'output' }, /output requires id/], [{ action: 'stop' }, /stop requires id/], [{ action: 'nope' }, /action must be one of/]]) {
+    const result = await run(params);
+    assert.equal(result.isError, true);
+    assert.match(result.content[0].text, message);
+  }
+  const bad = await run({ action: 'start', command: 'echo x', cwd: path.join(dir, 'missing') });
+  assert.equal(bad.isError, true);
+  assert.match(bad.content[0].text, /cwd does not exist/);
+  assert.equal((await run({ action: 'list' })).content[0].text, 'No background jobs.');
+  await handlers.session_shutdown[0]();
+});
+
+test('repeated session_start replaces the status timer instead of stacking', async (t) => {
+  withAgentDir(t, 'bg-shell-timer-');
+  const registered = {}; const handlers = {};
+  loadExtension(path.join(__dirname, '..', 'index.ts'))(makePi(registered, handlers));
+  const realSet = globalThis.setInterval; const realClear = globalThis.clearInterval;
+  const created = []; const cleared = [];
+  globalThis.setInterval = () => { const timer = { unref() {} }; created.push(timer); return timer; };
+  globalThis.clearInterval = (timer) => { cleared.push(timer); };
+  try {
+    await handlers.session_start[0]({}, { hasUI: false });
+    await handlers.session_start[0]({}, { hasUI: false });
+    await handlers.session_shutdown[0]();
+  } finally { globalThis.setInterval = realSet; globalThis.clearInterval = realClear; }
+  assert.equal(created.length, 2);
+  assert.deepEqual(cleared, [created[0], created[1]]);
 });
