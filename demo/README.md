@@ -45,6 +45,7 @@ No network is used.
 | `handoff` | `handoff.gif/png`, `handoff-end.png` | handoff |
 | `quality-on-write` | `quality-on-write.gif/png`, `-expanded.png` | quality-on-write |
 | `provider-statusline` | `provider-statusline.gif/png` | provider-statusline (quota bars from a fixture file) |
+| `subagent` | `subagent.gif/png`, `subagent-running.png`, `subagent-expanded.png` | subagent, claude-look (children are real `pi -p` processes on the demo provider) |
 | `vim-editor` | `vim-editor.gif/png`, `vim-editor-insert.png` | provider-statusline (Vim editor lives here for now) |
 
 `notify` is not recorded (a macOS notification cannot be captured in the terminal).

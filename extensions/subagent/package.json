@@ -1,0 +1,42 @@
+{
+  "name": "@fadhilmch/pi-subagent",
+  "version": "0.1.0",
+  "description": "Subagents for Pi: delegate read-heavy or parallel work to separate pi processes with their own model and tools; only a short report comes back.",
+  "license": "MIT",
+  "author": "Fadhil Mochammad",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "subagent",
+    "orchestration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fadhilmch/pi-customization.git",
+    "directory": "extensions/subagent"
+  },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/subagent#readme",
+  "bugs": {
+    "url": "https://github.com/fadhilmch/pi-customization/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "prompts": [
+      "./prompts/*.md"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "files": [
+    "index.ts",
+    "*.js",
+    "agents/*.md",
+    "prompts/*.md",
+    "README.md"
+  ]
+}

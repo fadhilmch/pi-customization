@@ -8,7 +8,7 @@
 // `turns`; each model request inside that prompt (one per tool round-trip) consumes the next Step.
 //   Step = { wait?, think?, text?, tools?: [[name, args], ...] }
 // A step without `tools` ends the run. `complete` is the reply to side requests that carry no tools
-// (e.g. /handoff summarisation).
+// (e.g. /handoff summarisation). `child(task)` returns the Step[] a subagent child process replays.
 import {
   type AssistantMessage,
   calculateCost,
@@ -25,6 +25,13 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms / SPEED)
 function loadScenario(): any {
   const name = process.env.PI_DEMO_SCENARIO || "hero";
   return require(path.join(__dirname, "scenarios", `${name}.js`));
+}
+
+// Text of the first user message (a subagent child's "Task: ..." prompt).
+function userText(messages: any[]): string {
+  const m = messages.find((x) => x.role === "user");
+  if (!m) return "";
+  return typeof m.content === "string" ? m.content : (m.content ?? []).map((p: any) => p.text ?? "").join("");
 }
 
 function chunks(text: string, size: number): string[] {
@@ -68,7 +75,11 @@ export default function (pi: ExtensionAPI) {
             turn++;
             step = 0;
           }
-          const steps = scenario.turns[turn] ?? [{ text: "(demo scenario has no more scripted turns)" }];
+          // Subagent children (PI_SUBAGENT_DEPTH set) replay scenario.child(task) instead of the parent's turns.
+          const steps =
+            (process.env.PI_SUBAGENT_DEPTH && scenario.child?.(userText(context.messages))) ??
+            scenario.turns[turn] ??
+            [{ text: "(demo scenario has no more scripted turns)" }];
           current = steps[Math.min(step, steps.length - 1)];
         }
 
