@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-21
+
+First release as an installable Pi package.
+
 ### Added
 
 - Each extension is also a standalone package (`@fadhilmch/pi-<name>`) with its own `package.json`, so a single tool can be installed on its own.
@@ -18,10 +22,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `plan-mode`: the plan is rendered as Markdown, and the approval result is a short wrapped line instead of a truncated one.
 - `provider-statusline`: the primary line degrades by priority on narrow terminals (shorter bars, then no bars, then drops 7d, thinking level, ...) so the reset countdown is not cut off.
 - `git-checkpoint`: `/rewind` rows show how many files restoring would change now, not the number of files in the snapshot (which was 0 for checkpoints taken before an edit).
-
-## [0.1.0]
-
-First release as an installable Pi package.
 
 ### Extensions
 
