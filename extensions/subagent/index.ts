@@ -28,7 +28,7 @@ const Params = Type.Object({
 });
 
 function description(_agents: any[]) {
-  return "Delegate read-heavy research to a fresh-context pi process; return only a capped report. Use {agent,task}, {tasks:[...]} for parallel work, or {chain:[...]}. Keep tasks self-contained. /agents lists options.";
+  return "Delegate read-heavy research to a fresh-context pi process; return only a capped report. Use {agent,task}, {tasks:[...]} for parallel work, or {chain:[...]}. Keep tasks self-contained. /agents lists scout, worker, and reviewer.";
 }
 
 export default function (pi: ExtensionAPI) {
