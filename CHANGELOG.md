@@ -10,12 +10,21 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `usage-report`: `/context` (estimated breakdown of the context window next to the provider's real size, with the biggest tool results) and `/cost` (tokens and cost per model on the current branch, plus subagent spend).
 - `quick-memory`: a line starting with `# ` in the editor is saved as a bullet in the project or user `AGENTS.md` (asks which) instead of being sent to the model.
 - Root `prompts/` folder with `/init`, `/commit` and `/pr` prompt templates (shipped by the root package, `pi.prompts` now includes `./prompts/*.md`); `tests/prompts.test.js` validates every template.
-- The root package now ships prompt templates (`extensions/*/prompts/*.md`).
 - `/context`, `/cost` and `/agents` open framed panels in the TUI (proportional window bar, per-category bars, cost split, cache-read share, effective agent models) instead of a plain-text notification; print/RPC mode keeps the text. `/context` names subagent calls in its biggest results (`subagent parallel: scout ×2`).
 - Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus `subagent` and `usage-report` tapes.
 
 ### Fixed
 
+- `subagent`: plan-mode bypass. When the parent session has neither `write` nor `edit` active (plan mode, `--tools read`), the tool now refuses any agent whose tools are empty (Pi's default set) or include `write`, `edit` or `bash`; only read-only agents such as `scout` run. The bundled `worker` no longer claims that risky commands are blocked when `auto-mode` is not loaded.
+- `subagent`: an agent's `maxOutput` is now enforced on the parent side (single, last chain step, parallel), not only requested in the child's prompt.
+- `subagent`: UTF-8 characters split across stdout or stderr chunks are no longer corrupted.
+- `subagent`: aborting a parallel call no longer starts the tasks still queued.
+- `subagent`: children run in their own process group (POSIX) and abort or timeout kills the group, so grandchildren do not linger; a run settles shortly after the child exits instead of waiting for `close`; the timeout message shows seconds under a minute; a nonexistent `cwd` gives a clear error; the Windows PATH fallback starts `pi.cmd`.
+- `subagent`: agent frontmatter keeps ` #` in descriptions (`issue #12`), folds `>` and `|` block scalars, and accepts empty frontmatter (`---` / `---`).
+- `usage-report`: `/context` uses Pi's own session projection, so old compaction summaries are no longer counted and `context_edit` replacements are honoured.
+- `usage-report`: `/cost` includes `usage` session entries (such as `cache_warm`) and branch summary usage.
+- `quick-memory`: notes go to the file Pi actually loads (first existing of `AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, `CLAUDE.MD`) instead of creating an `AGENTS.md` that shadows `CLAUDE.md`.
+- Home-directory expansion (`~`) also accepts the platform path separator in `subagent`, `quick-memory`, `auto-mode` and `quality-on-write`.
 - Demo sandbox pointed at the old `themes/claude-dark.json` path, so recordings fell back to the default theme.
 
 ## [0.1.0] - 2026-10-21
