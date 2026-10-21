@@ -20,7 +20,7 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`todo`](extensions/todo/) | A `todo` tool for multi-step work, shown above the editor as `☒ ◼ ☐`. `/todos`. | [png](docs/media/todo.png) |
 | [`git-checkpoint`](extensions/git-checkpoint/) | Snapshots the working tree (including untracked files) before each prompt without touching your index, stash or branches. `/rewind`. | [png](docs/media/git-checkpoint.png) |
 | [`handoff`](extensions/handoff/) | Writes a focused prompt from the current session and starts a fresh one with it, instead of lossy compaction. `/handoff <goal>`. | [png](docs/media/handoff.png) |
-| [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you after a long run. | [png](docs/media/notify.png) |
+| [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you after a long run. | — (system notification) |
 | [`quality-on-write`](extensions/quality-on-write/) | Formats files after edits with the project's own formatter, then typechecks touched files and sends errors back to the model. | [png](docs/media/quality-on-write.png) |
 | [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota or cost, cwd, git branch, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
 | [`vim-editor`](extensions/vim-editor/) | Modal Vim keys for the prompt editor. | [png](docs/media/vim-editor.png) |

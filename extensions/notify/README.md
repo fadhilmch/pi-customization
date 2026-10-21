@@ -2,7 +2,7 @@
 
 Desktop or terminal notification when Pi is waiting for you after a long run.
 
-![notify](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/notify.gif)
+_No recording: the notification appears outside the terminal (macOS Notification Center, or your terminal's own notification via OSC 9/99/777)._
 
 ## Install
 
