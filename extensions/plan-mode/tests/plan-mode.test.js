@@ -36,6 +36,9 @@ test('tool sets', () => {
   // ask_user (read-only) must survive planning so the model can ask before proposing a plan.
   assert.ok(plan.planTools(['read', 'ask_user', 'write']).includes('ask_user'));
   assert.deepEqual(plan.restoredTools(undefined, ['read', 'exit_plan_mode']), ['read']);
+  assert.equal(plan.isBlockedToolCall('bash_bg', { action: 'start' }), true);
+  assert.equal(plan.isBlockedToolCall('bash_bg', { action: 'list' }), false);
+  assert.equal(plan.isBlockedToolCall('notebook_edit', { mode: 'replace' }), true);
 });
 
 test('instructions mention the exit tool and approval messages differ', () => {

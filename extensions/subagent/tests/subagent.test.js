@@ -58,6 +58,12 @@ test('bundled agents parse cleanly', () => {
   assert.ok(!list.find((a) => a.name === 'reviewer').tools.includes('edit'));
 });
 
+test('read-only dispatch refuses background shell starts and notebook edits', () => {
+  assert.match(dispatch.readOnlyViolation({ tools: ['read', 'bash_bg'] }), /bash_bg/);
+  assert.match(dispatch.readOnlyViolation({ tools: ['read', 'notebook_edit'] }), /notebook_edit/);
+  assert.equal(dispatch.readOnlyViolation({ tools: ['read', 'grep'] }), null);
+});
+
 test('discoverAgents: user overrides bundled, project only when trusted', () => {
   const home = tmp('sa-home-');
   const proj = tmp('sa-proj-');

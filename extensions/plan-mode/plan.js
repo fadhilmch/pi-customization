@@ -5,7 +5,7 @@ const TEAL = '#48968c';
 const { fg, bold, dim, truncate, wrapAnsi } = require('./ansi.js');
 
 const EXIT_TOOL = 'exit_plan_mode';
-const WRITE_TOOLS = new Set(['write', 'edit']);
+const WRITE_TOOLS = new Set(['write', 'edit', 'notebook_edit']);
 const CONTEXT_TAG = '[PLAN MODE ACTIVE]';
 const ENTRY_TYPE = 'plan-mode';
 
@@ -18,6 +18,10 @@ const CHOICES = {
 // Active tool list while planning: drop write/edit, add exit_plan_mode.
 function planTools(active) {
   return [...new Set([...active.filter((n) => !WRITE_TOOLS.has(n)), EXIT_TOOL])];
+}
+
+function isBlockedToolCall(toolName, input = {}) {
+  return WRITE_TOOLS.has(toolName) || (toolName === 'bash_bg' && input.action === 'start');
 }
 
 // Active tool list after leaving plan mode: the saved list, minus exit_plan_mode.
@@ -114,6 +118,6 @@ function formatPlanResult(text, { details, isError = false, isPartial = false, w
 
 module.exports = {
   TEAL, EXIT_TOOL, WRITE_TOOLS, CONTEXT_TAG, ENTRY_TYPE, CHOICES,
-  planTools, restoredTools, planInstructions, approvalMessage, keepPlanningMessage,
+  planTools, restoredTools, isBlockedToolCall, planInstructions, approvalMessage, keepPlanningMessage,
   extractSteps, widgetLine, statusText, formatPlanCall, formatPlanHeader, formatPlanBody, planOutcome, formatPlanResult,
 };

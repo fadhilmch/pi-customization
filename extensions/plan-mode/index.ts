@@ -6,12 +6,12 @@ import { Type } from "typebox";
 const { isSafeCommand } = require("./bash.js");
 const {
   EXIT_TOOL,
-  WRITE_TOOLS,
   CONTEXT_TAG,
   ENTRY_TYPE,
   CHOICES,
   planTools,
   restoredTools,
+  isBlockedToolCall,
   planInstructions,
   approvalMessage,
   keepPlanningMessage,
@@ -175,13 +175,14 @@ export default function (pi: ExtensionAPI) {
 
   // Enforcement. The tool list already hides write/edit, but extension-provided tools can re-add them.
   pi.on("tool_call", async (event: any, ctx: any) => {
-    const mutating = WRITE_TOOLS.has(event.toolName) || (event.toolName === "bash" && !isSafeCommand(String(event.input?.command ?? "")));
+    const blockedTool = isBlockedToolCall(event.toolName, event.input);
+    const mutating = blockedTool || ((event.toolName === "bash" || (event.toolName === "bash_bg" && event.input?.action === "start")) && !isSafeCommand(String(event.input?.command ?? "")));
 
     if (planMode) {
-      if (WRITE_TOOLS.has(event.toolName)) {
+      if (blockedTool) {
         return { block: true, reason: `Plan mode is on: ${event.toolName} is disabled. Finish the plan and call ${EXIT_TOOL}.` };
       }
-      if (event.toolName === "bash" && mutating) {
+      if ((event.toolName === "bash" || (event.toolName === "bash_bg" && event.input?.action === "start")) && mutating) {
         return {
           block: true,
           reason: `Plan mode: command blocked (not on the read-only allowlist). Research with read-only commands, then call ${EXIT_TOOL}.\nCommand: ${event.input?.command}`,
