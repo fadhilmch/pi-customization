@@ -32,12 +32,13 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 
 ### Prompt templates
 
-Prompt templates are Markdown files that Pi turns into slash commands. Typing `/commit` sends the file's text to the model as your message, so a template is a saved instruction, not code. Three general ones live in [`prompts/`](prompts/) (the subagent ones, `/scout`, `/review` and `/orchestrate`, ship with [`subagent`](extensions/subagent/) because they need its tool):
+Prompt templates are Markdown files that Pi turns into slash commands. Typing `/commit` sends the file's text to the model as your message, so a template is a saved instruction, not code. Four general ones live in [`prompts/`](prompts/) (the subagent ones, `/scout`, `/review` and `/orchestrate`, ship with [`subagent`](extensions/subagent/) because they need its tool):
 
 | Command | What it does | Example |
 |---|---|---|
 | `/init [focus]` | Writes or updates `AGENTS.md`: commands, layout, conventions, gotchas, under about 60 lines. Uses the `scout` subagent for recon when the `subagent` tool exists, otherwise reads files itself. Keeps hand-written rules in an existing file. Does not commit. | `/init focus on the test setup` |
 | `/commit [hint]` | Reads the staged diff and `git log`, drafts a message in the repo's own style, shows it, and runs `git commit` only after you approve. Stages nothing, never pushes or amends. | `/commit mention the config change` |
+| `/ship [base] [hint]` | Verify, commit, push and open a PR in one flow: runs the project's tests and lint it can find (stops on failure), branches off the default branch if needed, then asks before the commit, push and `gh pr create`. Updates the body with `gh pr edit` if the branch already has a PR; skips push/PR when there is no remote or `gh` is not signed in. | `/ship develop` |
 | `/pr [base]` | Drafts a PR title and description from `BASE...HEAD`, following `.github/pull_request_template.md` if there is one. Does not push or run `gh pr create`. | `/pr develop` |
 
 How they work: each template is a numbered checklist for the model, with the stop points ("ask before committing", "do not push") written into it. `$@` is replaced by everything you typed after the command, and `/pr` uses `${1:-default}` for its first argument. Nothing is enforced by code. A model can ignore a template, so pair `/commit` with `auto-mode` if you want a hard stop before risky git commands.
