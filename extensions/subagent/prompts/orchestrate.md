@@ -27,13 +27,13 @@ You are the orchestrator, the main brain for this goal. You own the plan, every 
 
 6. Brief once. Before delegating, write the rules every worker shares (conventions to follow, files they must not touch, checks to run, report format) to a file in a temp directory (`mktemp -d`). Each worker task points to it instead of repeating it.
 7. Delegate. Each worker task stands alone: the step's goal, files, done-when check, constraints and any context it needs from this conversation, plus "read <brief path> first". Run the groups in dispatch order, one `subagent` call per group (parallel inside a group), and wait for a group to pass its audit before starting the next. Do only the `me` steps yourself. If a worker-owned step fails twice, tell me before taking it over.
-8. Worktree. Workers share the same working tree and branch. Do not run parallel workers that edit the same files, and do not create worktrees by default. Use a separate worktree only when I ask for isolation or separate branches.
+8. Worktree. Workers share the same working tree and branch. Do not run parallel workers that edit the same files, and do not create worktrees by default. Use a separate worktree only when I ask for isolation or separate branches. Workers in the shared tree never commit; you do. A worker in its own worktree commits on its own branch.
 9. Audit. Check every report against its step: was each item done, does the done-when check pass, did it stay inside its files? Do not accept "done" without evidence. Send gaps back as a new, specific worker task, or fix small ones yourself. Update the todo list.
 10. Replan. If a step turns out wrong or needs files it does not own, stop, update the plan, and tell me what changed and why. Ask me again if the scope grows.
 
 ## Phase 4: Integrate and finish
 
-11. Integrate. Apply the shared-file edits you kept for yourself.
+11. Integrate. Apply the shared-file edits you kept for yourself. If workers ran in their own worktrees, merge each kept branch into yours one at a time, then remove its worktree and branch.
 12. Verify. Run the relevant test suite or typecheck yourself on the combined result, not only the per-step checks.
 13. Review. Run one `reviewer` subagent on the final diff, fix what is real.
 14. Commit. If the orchestration makes an important, completed change, stage only the files for that change and create a Conventional Commit (for example, `feat: add ...` or `fix: ...`). Do not commit trivial or incomplete work. Never push or amend a commit.

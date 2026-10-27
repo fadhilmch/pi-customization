@@ -63,7 +63,7 @@ Each item can set `cwd`. A chain stops at the first failed step. If a step has n
 | Agent | Tools | Defaults | Use it for |
 |---|---|---|---|
 | `scout` | read, grep, find, ls | thinking `low`, no AGENTS.md/CLAUDE.md, 6k-char report | Finding code, tracing callers, reading docs or logs. Read-only and the cheapest agent. |
-| `worker` | read, grep, find, ls, bash, edit, write | auto-mode + quality-on-write in the child, 6k-char report | One well-specified, independent piece of a plan |
+| `worker` | read, grep, find, ls, bash, edit, write | auto-mode + quality-on-write in the child, 6k-char report | One well-specified, independent piece of a plan. Reads the task's brief file first, keeps the diff small, runs the task's check. Never commits in the shared tree; commits on its own branch when it runs in a worktree. |
 | `reviewer` | read, grep, find, ls, bash | auto-mode in the child, 8k-char report | One review of a finished diff |
 
 Every agent inherits your current model unless it names one, so they work with any provider. The thinking level is inherited too, unless the agent sets one or pins its own model (`scout` sets `low`). Inheriting means a `scout` costs as much per token as your main session. To make it cheap, pin a small model for it in `~/.pi/agent/subagent.json`:
