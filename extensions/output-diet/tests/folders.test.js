@@ -268,13 +268,16 @@ test('engine: a folder replaces the result, saves the full output and tallies pe
   assert.equal(diet.onToolResult(ev('npx tsc', 'tsc'), ctx).details.outputDiet.folder, 'tsc');
 });
 
-test('engine: default allowlist keeps git log whole only when no folder applies; custom allowlist wins', () => {
+test('engine: default allowlist: plain git log is summarised, git diff/show stay whole; custom allowlist wins', () => {
   const dflt = engine().diet;
   const ctx = engine().ctx;
   assert.equal(dflt.onToolResult(ev('git log --format=%H%n%s', 'git-log'), ctx), undefined, 'custom --format stays allowlisted');
   assert.ok(dflt.onToolResult(ev('git log', 'git-log'), ctx), 'plain git log is summarised');
   const custom = engine({ allowlist: ['^npm test'] }).diet;
   assert.ok(custom.onToolResult(ev('git log', 'git-log'), ctx), 'folder runs; the custom allowlist does not list git');
+  assert.equal(dflt.onToolResult(ev('git diff', 'git-diff'), ctx), undefined, 'git diff stays whole under the default allowlist');
+  assert.equal(dflt.onToolResult(ev('git show HEAD', 'git-diff'), ctx), undefined, 'git show stays whole under the default allowlist');
+  assert.equal(custom.onToolResult(ev('git diff', 'git-diff'), ctx).details.outputDiet.folder, 'git-diff', 'git-diff folder runs once git diff leaves the allowlist');
   assert.equal(custom.onToolResult(ev('npm test', 'jest'), ctx), undefined, 'custom allowlist wins over test-runner');
 });
 

@@ -47,11 +47,11 @@ function createDiet({ loadConfig, fs = fsDefault, os = osDefault, emit = () => {
 
   function foldBash(event, ctx) {
     const command = event.input?.command;
-    // The default allowlist keeps `git diff|log` whole; a command folder summarises those instead. A
-    // customised allowlist always wins over the folders.
+    // The default allowlist keeps `git diff|show` whole (prompts and reviewers read whole diffs); only plain
+    // `git log` is summarised despite it. A customised allowlist always wins over the folders.
     const allowlisted = isAllowlisted(command, state.cfg);
     const defaultAllowlist = JSON.stringify(state.cfg.allowlist) === JSON.stringify(DEFAULTS.allowlist);
-    if (allowlisted && !(defaultAllowlist && pickFolder(command, state.cfg))) return undefined;
+    if (allowlisted && !(defaultAllowlist && pickFolder(command, state.cfg)?.name === 'git-log')) return undefined;
     const run = (opts) => foldByCommand(command, text, state.cfg, opts) || (allowlisted ? null : fold(text, state.cfg, opts));
     if (!onlyText(event.content)) return undefined;
     const shown = textOf(event.content);

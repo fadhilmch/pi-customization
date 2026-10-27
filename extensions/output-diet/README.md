@@ -61,7 +61,7 @@ Command folders (the names are what `disableFolders` takes). Each runs on the sa
 |---|---|---|
 | `git-log` | `git log` without `--format`, `--pretty`, `--oneline`, `-n` | `hash subject` per commit, capped at `maxMatches` |
 | `git-status` | `git status` (long and `-s`/`-sb`) | branch, counts per group, file list capped at `maxMatches` |
-| `git-diff` | `git diff`, `git show` without `--stat` and similar | `+added -removed` per file, then the first changed lines of the first 10 files |
+| `git-diff` | `git diff`, `git show` without `--stat` and similar (only when not allowlisted, see Limits) | `+added -removed` per file, then the first changed lines of the first 10 files |
 | `test-runner` | pytest, jest, vitest, `node --test`, `go test`, `cargo test`, `npm/pnpm/yarn test` | everything except passing-test and progress lines: failure blocks and the count/summary lines |
 | `tsc` | `tsc`, `vue-tsc` | errors grouped by file, 5 per file, the total and `Found N errors` |
 | `eslint` | `eslint` (stylish format) | problems grouped by file, errors first, 5 per file, the totals line |
@@ -141,7 +141,7 @@ Measured with the demo harness (`demo/provider/scenarios/output-diet.js`, a fake
 - The model loses the skipped lines unless it reads the saved file. If the answer was in a middle line that matched no pattern, it has to notice the note and read it. Tune `patterns`, `headLines` and `tailLines`, or add the command to `allowlist`.
 - Matching is by regex on lines; a failure printed without any keyword is not recognised. Colour codes in lines can hide a match from anchored patterns.
 - Command folders are heuristics on text formats. They read the common output of each tool (pytest and jest default reporters, `tsc` plain and `--pretty`, ESLint `stylish`, `git` long and short status); other reporters, other locales or JSON output usually fall back to the generic fold, and a folder can drop lines it misjudged (the full output is in the saved file). Error and failure lines are kept, except that tsc, eslint and the grep, find and ls folders show only the first few items per file or directory, with the counts.
-- The default `allowlist` still lists `git diff|show|log`, so those stay whole when no folder applies (`git log --format=...`, `--stat`) but are summarised by the git folders otherwise; set `disableFolders` for them, or a custom `allowlist` (which always wins over the folders), to see them in full.
+- The default `allowlist` lists `git diff|show|log`. Plain `git log` is still summarised (the `git-log` folder overrides the default list), but `git diff` and `git show` stay whole, because commit, PR and review prompts and reviewer agents read whole diffs. The `git-diff` folder therefore only runs if you set your own `allowlist` without `git diff`/`git show`. A custom `allowlist` always wins over the folders.
 - Only `bash` is folded; `grep`, `find`, `ls`, `powershell` and MCP or other tools are untouched. Results with images are untouched.
 - Dedupe requires the earlier read in the live context and identical content; reads in the same parallel batch are never deduped. It ignores changes made outside Pi that were reverted, since content equality is all it checks.
 - Saved files stay in the temp directory until your OS cleans it; they can contain secrets that were in the output. They are 0600, in a 0700 folder.
