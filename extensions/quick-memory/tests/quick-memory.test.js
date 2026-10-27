@@ -37,8 +37,8 @@ test('appendBullet: new file, bullet list, prose ending, missing trailing newlin
 test('saveNote creates dirs/files and appends to existing ones', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-'));
   const file = path.join(dir, 'nested', 'AGENTS.md');
-  assert.deepEqual(saveNote(file, 'one', fs), { created: true });
-  assert.deepEqual(saveNote(file, 'two', fs), { created: false });
+  assert.equal(saveNote(file, 'one', fs).created, true);
+  assert.equal(saveNote(file, 'two', fs).created, false);
   assert.equal(fs.readFileSync(file, 'utf8'), '## Notes\n\n- one\n- two\n');
   fs.rmSync(dir, { recursive: true });
 });
@@ -57,7 +57,7 @@ test('index.ts input handler saves to the chosen file and handles/continues corr
   process.env.PI_CODING_AGENT_DIR = agent;
   const mod = await import(pathToFileURL(path.join(__dirname, '..', 'index.ts')).href);
   let handler;
-  mod.default({ on: (e, h) => { if (e === 'input') handler = h; } });
+  mod.default({ on: (e, h) => { if (e === "input") handler = h; }, registerCommand: () => {} });
   assert.ok(handler);
 
   const notes = [];
@@ -123,4 +123,102 @@ test('memoryFile picks the file Pi loads: first existing candidate, AGENTS.md on
   saveNote(userFile({ PI_CODING_AGENT_DIR: agent }), 'be terse', fs);
   assert.equal(fs.readFileSync(path.join(agent, 'CLAUDE.md'), 'utf8'), 'x\n\n- be terse\n');
   assert.ok(!fs.existsSync(path.join(agent, 'AGENTS.md')));
+});
+
+test('hasBullet and saveNote skip exact duplicates only', () => {
+  const { hasBullet } = require('../memory.js');
+  assert.equal(hasBullet('- use pnpm\n', 'use pnpm'), true);
+  assert.equal(hasBullet('* use  pnpm  \n', 'use pnpm'), true, 'other bullet marker and spacing');
+  assert.equal(hasBullet('- use pnpm now\n', 'use pnpm'), false, 'substring is not a duplicate');
+  assert.equal(hasBullet('use pnpm\n', 'use pnpm'), false, 'not a bullet');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-dup-'));
+  const file = path.join(dir, 'AGENTS.md');
+  assert.deepEqual(saveNote(file, 'a', fs), { created: true, duplicate: false, line: '- a' });
+  assert.deepEqual(saveNote(file, 'a', fs), { created: false, duplicate: true, line: '- a' });
+  assert.equal(fs.readFileSync(file, 'utf8'), '## Notes\n\n- a\n');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('undoNote removes the appended line only while it is unchanged', () => {
+  const { undoNote } = require('../memory.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-undo-'));
+  const file = path.join(dir, 'AGENTS.md');
+  fs.writeFileSync(file, '# Title\n\nProse.\n');
+  const { line } = saveNote(file, 'b', fs);
+  assert.deepEqual(undoNote(file, line, fs), { removed: true });
+  assert.equal(fs.readFileSync(file, 'utf8'), '# Title\n\nProse.\n');
+  saveNote(file, 'c', fs);
+  saveNote(file, 'd', fs);
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('- d', '- d edited'));
+  assert.deepEqual(undoNote(file, '- d', fs), { removed: false });
+  assert.match(fs.readFileSync(file, 'utf8'), /- d edited/);
+  assert.deepEqual(undoNote(path.join(dir, 'missing.md'), '- x', fs), { removed: false });
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('index.ts: secret refusal, duplicate skip, /memory editor and /memory undo', { skip: !canStrip && 'needs --experimental-strip-types' }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qm-cmd-'));
+  const proj = path.join(dir, 'proj');
+  fs.mkdirSync(proj);
+  process.env.PI_CODING_AGENT_DIR = path.join(dir, 'agent');
+  const mod = await import(pathToFileURL(path.join(__dirname, '..', 'index.ts')).href + '?cmd');
+  let input;
+  let command;
+  mod.default({ on: (e, h) => { if (e === 'input') input = h; }, registerCommand: (n, o) => { if (n === 'memory') command = o; } });
+  assert.ok(input && command.handler && command.description);
+
+  const notes = [];
+  let editorArgs;
+  let editorReply;
+  let editor;
+  const ctx = {
+    mode: 'tui', hasUI: true, cwd: proj,
+    ui: {
+      notify: (m, t) => notes.push([m, t]),
+      select: async (_t, opts) => opts[0],
+      setEditorText: (t) => (editor = t),
+      editor: async (title, prefill) => { editorArgs = [title, prefill]; return editorReply; },
+    },
+  };
+  const ev = (text) => ({ type: 'input', text, source: 'interactive' });
+  const file = path.join(proj, 'AGENTS.md');
+
+  // secret: refused, nothing written, text restored
+  assert.deepEqual(await input(ev('# key AKIAIOSFODNN7EXAMPLE'), ctx), { action: 'handled' });
+  assert.ok(!fs.existsSync(file));
+  assert.equal(editor, '# key AKIAIOSFODNN7EXAMPLE');
+  assert.equal(notes.at(-1)[1], 'error');
+  assert.match(notes.at(-1)[0], /looks like a secret/);
+
+  // save, then exact duplicate is skipped
+  await input(ev('# use pnpm'), ctx);
+  await input(ev('# use pnpm'), ctx);
+  assert.equal(fs.readFileSync(file, 'utf8'), '## Notes\n\n- use pnpm\n');
+  assert.match(notes.at(-1)[0], /Already in .*AGENTS\.md: use pnpm/);
+
+  // /memory opens the file; edits are saved, unchanged/cancel are not
+  editorReply = '## Notes\n\n- use pnpm\n- edited by hand\n';
+  await command.handler('', ctx);
+  assert.deepEqual(editorArgs, [file, '## Notes\n\n- use pnpm\n']);
+  assert.equal(fs.readFileSync(file, 'utf8'), editorReply);
+  assert.match(notes.at(-1)[0], /^Saved /);
+  editorReply = undefined;
+  await command.handler('', ctx);
+  assert.equal(fs.readFileSync(file, 'utf8'), '## Notes\n\n- use pnpm\n- edited by hand\n');
+  assert.match(notes.at(-1)[0], /No changes saved/);
+
+  // /memory undo removes the only note added in this session (the duplicate did not count)
+  await command.handler('undo', ctx);
+  assert.equal(fs.readFileSync(file, 'utf8'), '## Notes\n\n- edited by hand\n');
+  await command.handler('undo', ctx);
+  assert.match(notes.at(-1)[0], /No note to undo/);
+
+  // undo refuses when the line was edited
+  await input(ev('# second'), ctx);
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('- second', '- second!'));
+  await command.handler('undo', ctx);
+  assert.match(notes.at(-1)[0], /Not undone/);
+  assert.match(fs.readFileSync(file, 'utf8'), /- second!/);
+  delete process.env.PI_CODING_AGENT_DIR;
+  fs.rmSync(dir, { recursive: true });
 });
