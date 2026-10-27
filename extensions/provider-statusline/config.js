@@ -8,8 +8,10 @@ const DEFAULTS = Object.freeze({
   contextBar: true,         // "Ctx ████░░░░ 42%"
   quota: true,              // 5h / 7d quota bars for Claude and Codex
   cost: true,               // session cost when no quota is shown
+  cacheHit: true,           // "Cache 87%": cache reads / total input for the session
   cwd: true,                // working directory on the second line
   gitBranch: true,          // git branch on the second line
+  gitStatus: true,          // "*3 ↑2 ↓1" (dirty files, ahead/behind) next to the branch; hidden when zero
   pullRequest: true,        // open PR label (needs `gh`; runs in the background)
   extensionStatuses: true,  // ctx.ui.setStatus() values from other extensions
   codexQuotaFetch: true,    // call chatgpt.com usage endpoint with the local Codex token
@@ -37,6 +39,12 @@ function parseBool(value) {
   return undefined;
 }
 
+// `budget` is the one numeric key (session cost in $, > 0). It is absent from DEFAULTS: unset means no budget.
+function parseBudget(value) {
+  const n = typeof value === 'string' ? Number(value.trim()) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 // Later layers win; unknown keys and non-boolean values are ignored.
 function mergeConfig(...layers) {
   const result = { ...DEFAULTS };
@@ -46,6 +54,8 @@ function mergeConfig(...layers) {
       const value = parseBool(layer[key]);
       if (value !== undefined) result[key] = value;
     }
+    const budget = parseBudget(layer.budget);
+    if (budget !== undefined) result.budget = budget;
   }
   return result;
 }
@@ -56,6 +66,8 @@ function configFromEnv(env = process.env) {
     const value = parseBool(env[envName(key)]);
     if (value !== undefined) out[key] = value;
   }
+  const budget = parseBudget(env.PI_STATUSLINE_BUDGET);
+  if (budget !== undefined) out.budget = budget;
   return out;
 }
 
@@ -76,4 +88,4 @@ function loadConfig(env = process.env) {
   return mergeConfig(readConfigFile(configPath(env)), configFromEnv(env));
 }
 
-module.exports = { DEFAULTS, KEYS, envName, parseBool, mergeConfig, configFromEnv, configPath, loadConfig };
+module.exports = { DEFAULTS, KEYS, envName, parseBool, parseBudget, mergeConfig, configFromEnv, configPath, loadConfig };

@@ -43,7 +43,58 @@ function loadPullRequest(cwd) {
   });
 }
 
+// Parse `git status --porcelain=v2 --branch`: dirty = changed/untracked entries, ahead/behind from "# branch.ab +A -B".
+function parseGitStatus(output) {
+  let dirty = 0;
+  let ahead = 0;
+  let behind = 0;
+  for (const line of String(output || '').split('\n')) {
+    if (line.startsWith('# branch.ab ')) {
+      const m = /\+(\d+) -(\d+)/.exec(line);
+      if (m) {
+        ahead = Number(m[1]);
+        behind = Number(m[2]);
+      }
+    } else if (line && !line.startsWith('#')) dirty++;
+  }
+  return { dirty, ahead, behind };
+}
+
+// "*3 ↑2 ↓1"; each part hidden when zero, empty string when clean and in sync.
+function formatGitStatus(status) {
+  if (!status) return '';
+  const parts = [];
+  if (status.dirty > 0) parts.push(`*${status.dirty}`);
+  if (status.ahead > 0) parts.push(`↑${status.ahead}`);
+  if (status.behind > 0) parts.push(`↓${status.behind}`);
+  return parts.join(' ');
+}
+
+let gitMissing = false;
+
+function loadGitStatus(cwd) {
+  if (gitMissing) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['--no-optional-locks', 'status', '--porcelain=v2', '--branch'],
+      { cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 8 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
+      (error, stdout) => {
+        if (error) {
+          if (error.code === 'ENOENT') gitMissing = true;
+          resolve(null);
+          return;
+        }
+        resolve(parseGitStatus(stdout));
+      },
+    );
+  });
+}
+
 module.exports = {
+  parseGitStatus,
+  formatGitStatus,
+  loadGitStatus,
   formatPullRequestLabel,
   loadPullRequest,
   normalizePullRequest,

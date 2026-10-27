@@ -1,7 +1,7 @@
 {
   "name": "@fadhilmch/pi-usage-report",
   "version": "0.1.0",
-  "description": "/context and /cost for Pi: see what fills the context window and what the session (and its subagents) cost.",
+  "description": "/context and /cost for Pi: see what fills the context window and what the session (and its subagents) cost, plus daily and monthly cost history.",
   "license": "MIT",
   "author": "Fadhil Mochammad",
   "keywords": [

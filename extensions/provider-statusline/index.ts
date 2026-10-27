@@ -2,9 +2,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const { fitPrimaryItems, formatWorkspacePath, getProviderKind } = require("./format.js");
-const { getSessionCostText } = require("./cost.js");
+const { getSessionCostInfo, getCacheHitPct, budgetLevel } = require("./cost.js");
 const { loadQuotaSnapshotAsync, loadCodexQuota, normalizeHeaderQuota } = require("./quota.js");
-const { formatPullRequestLabel, loadPullRequest } = require("./git.js");
+const { formatPullRequestLabel, loadPullRequest, formatGitStatus, loadGitStatus } = require("./git.js");
 const { loadConfig } = require("./config.js");
 const { collectStatuses, fitSegments } = require("./statuses.js");
 const { registerHotkeysShortcut } = require("./shortcuts.js");
@@ -25,7 +25,7 @@ function pctColor(pct?: number | null): number {
   return 196;
 }
 
-function colorPrimaryItem(item: { key: string; text: string; pct?: number | null }): string {
+function colorPrimaryItem(item: { key: string; text: string; pct?: number | null; level?: string | null }): string {
   switch (item.key) {
     case "model":
       return fg256(141, item.text);
@@ -36,7 +36,14 @@ function colorPrimaryItem(item: { key: string; text: string; pct?: number | null
     case "sevenDay":
       return fg256(pctColor(item.pct), item.text);
     case "cost":
+      // With a budget: green under 80%, orange from 80%, red from 100%. Without one: orange as before.
+      if (item.level === "error") return fg256(196, item.text);
+      if (item.level === "warn") return fg256(214, item.text);
+      if (item.level === "ok") return fg256(76, item.text);
       return fg256(item.text.includes("?") ? 196 : 214, item.text);
+    case "cacheHit":
+      return fg256(111, item.text, false);
+    case "fiveHourReset":
     case "reset":
       return fg256(244, item.text, false);
     default:
@@ -50,6 +57,10 @@ function colorPath(text: string): string {
 
 function colorBranch(text: string): string {
   return fg256(76, text);
+}
+
+function colorGitStatus(text: string): string {
+  return fg256(214, text, false);
 }
 
 function colorPullRequest(text: string): string {
@@ -68,12 +79,15 @@ type Quota = ReturnType<typeof normalizeHeaderQuota>;
 
 function makePrimaryLine(ctx: ExtensionContext, config: Config, quota: Quota, width: number): string {
   const kind = getProviderKind(ctx.model);
+  const cost = config.cost ? getSessionCostInfo(ctx) : { text: "", total: 0 };
   const items = fitPrimaryItems(
     {
       model: ctx.model,
       thinkingLevel: ctx.thinkingLevel,
       contextPct: getContextPct(ctx),
-      sessionCostText: config.cost ? getSessionCostText(ctx) : "",
+      sessionCostText: cost.text,
+      sessionCostLevel: config.budget ? budgetLevel(cost.total, config.budget) : null,
+      cacheHitPct: config.cacheHit ? getCacheHitPct(ctx) : null,
       quota: kind === "claude" || kind === "codex" ? quota : null,
       show: config,
     },
@@ -90,11 +104,15 @@ function makeSecondaryLine(
   width: number,
   branch: string | null | undefined,
   pullRequest: { number: number; title: string } | null,
+  gitStatus: { dirty: number; ahead: number; behind: number } | null,
   statuses: ReadonlyMap<string, string> | undefined,
 ): string {
   const segments: string[] = [];
   if (config.cwd) segments.push(`⌂ ${colorPath(formatWorkspacePath(ctx.cwd))}`);
-  if (config.gitBranch && branch) segments.push(`⎇ ${colorBranch(branch)}`);
+  if (config.gitBranch && branch) {
+    const marks = config.gitStatus ? formatGitStatus(gitStatus) : "";
+    segments.push(`⎇ ${colorBranch(branch)}${marks ? ` ${colorGitStatus(marks)}` : ""}`);
+  }
   const pullRequestText = config.pullRequest ? formatPullRequestLabel(pullRequest) : "";
   if (pullRequestText) segments.push(colorPullRequest(pullRequestText));
   if (config.extensionStatuses) {
@@ -121,6 +139,8 @@ export default function providerStatusline(pi: ExtensionAPI) {
   let quotaRefresh = 0;
   let pullRequest: { number: number; title: string; url?: string } | null = null;
   let pullRequestRefresh = 0;
+  let gitStatus: { dirty: number; ahead: number; behind: number } | null = null;
+  let gitStatusRefresh = 0;
 
   const rerender = () => requestRender?.();
 
@@ -153,14 +173,29 @@ export default function providerStatusline(pi: ExtensionAPI) {
     rerender();
   }
 
+  async function refreshGitStatus(ctx: ExtensionContext) {
+    const refreshId = ++gitStatusRefresh;
+    if (!config.gitBranch || !config.gitStatus) return;
+    try {
+      const next = await loadGitStatus(ctx.cwd);
+      if (refreshId !== gitStatusRefresh) return;
+      gitStatus = next;
+    } catch {
+      gitStatus = null;
+    }
+    rerender();
+  }
+
   function mount(ctx: ExtensionContext) {
     if (!ctx.hasUI) return;
 
     ctx.ui.setFooter((tui, _theme, footerData) => {
       const unsubscribe = footerData.onBranchChange(() => {
         pullRequest = null;
+        gitStatus = null;
         tui.requestRender();
         void refreshPullRequest(ctx);
+        void refreshGitStatus(ctx);
       });
       requestRender = () => tui.requestRender();
 
@@ -178,7 +213,7 @@ export default function providerStatusline(pi: ExtensionAPI) {
           const lines = [
             truncateToWidth(makePrimaryLine(ctx, config, quota, width), width),
             truncateToWidth(
-              makeSecondaryLine(ctx, config, width, branch, pullRequest, footerData.getExtensionStatuses?.()),
+              makeSecondaryLine(ctx, config, width, branch, pullRequest, gitStatus, footerData.getExtensionStatuses?.()),
               width,
             ),
           ];
@@ -192,6 +227,7 @@ export default function providerStatusline(pi: ExtensionAPI) {
       rerender();
       void refreshQuota(ctx);
       void refreshPullRequest(ctx);
+      void refreshGitStatus(ctx);
     }, REFRESH_MS);
   }
 
@@ -200,8 +236,10 @@ export default function providerStatusline(pi: ExtensionAPI) {
     refreshTimer = undefined;
     requestRender = undefined;
     pullRequestRefresh++;
+    gitStatusRefresh++;
     quotaRefresh++;
     pullRequest = null;
+    gitStatus = null;
   }
 
   pi.on("session_start", async (_event, ctx) => {
@@ -209,9 +247,11 @@ export default function providerStatusline(pi: ExtensionAPI) {
     responseQuota = null;
     externalQuota = null;
     pullRequest = null;
+    gitStatus = null;
     mount(ctx);
     void refreshQuota(ctx);
     void refreshPullRequest(ctx);
+    void refreshGitStatus(ctx);
   });
 
   pi.on("after_provider_response", (event, ctx) => {

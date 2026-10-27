@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { DEFAULTS, mergeConfig, configFromEnv, envName, loadConfig, parseBool } = require('../config.js');
+const { DEFAULTS, parseBudget, mergeConfig, configFromEnv, envName, loadConfig, parseBool } = require('../config.js');
 
 test('defaults keep every segment on', () => {
   assert.ok(Object.values(DEFAULTS).every((v) => v === true));
@@ -51,4 +51,13 @@ test('loadConfig: env overrides file, file overrides defaults, bad file is ignor
   fs.writeFileSync(file, '{not json');
   assert.deepEqual(loadConfig({ PI_STATUSLINE_CONFIG: file }), { ...DEFAULTS });
   assert.deepEqual(loadConfig({ PI_STATUSLINE_CONFIG: path.join(dir, 'missing.json') }), { ...DEFAULTS });
+});
+
+test('budget is numeric, positive, optional and overridable by env', () => {
+  assert.equal('budget' in mergeConfig(), false);
+  assert.equal(mergeConfig({ budget: 5 }).budget, 5);
+  assert.equal(mergeConfig({ budget: '2.5' }).budget, 2.5);
+  for (const bad of [0, -1, 'abc', null, true, NaN]) assert.equal(parseBudget(bad), undefined);
+  assert.equal('budget' in mergeConfig({ budget: 0 }), false);
+  assert.deepEqual(configFromEnv({ PI_STATUSLINE_BUDGET: '3' }), { budget: 3 });
 });
