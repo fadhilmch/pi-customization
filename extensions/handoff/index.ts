@@ -38,7 +38,7 @@ export default function (pi: ExtensionAPI) {
       const model = ctx.model;
 
       let failure: string | undefined;
-      const generated = await ctx.ui.custom<string | null>((tui: any, theme: any, _kb: any, done: (v: string | null) => void) => {
+      const generated = await ctx.ui.custom((tui: any, theme: any, _kb: any, done: (v: string | null) => void) => {
         const loader = new BorderedLoader(tui, theme, "⏺ Generating handoff prompt…");
         loader.onAbort = () => done(null);
 

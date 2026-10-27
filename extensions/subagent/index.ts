@@ -122,7 +122,7 @@ export default function (pi: ExtensionAPI) {
       const data = { ...found, agents, configFile: file, userDir: path.join(path.dirname(file), "agents") };
       // Runtime import from Pi; keeps this module loadable without it.
       const { matchesKey } = await import("@earendil-works/pi-tui");
-      await ctx.ui.custom<void>(
+      await ctx.ui.custom(
         (_tui: any, _theme: any, _kb: any, done: (v: void) => void) => ({
           render: (width: number) => agentsPanel(data, width),
           invalidate() {},

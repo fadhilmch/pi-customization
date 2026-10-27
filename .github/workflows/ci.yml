@@ -24,3 +24,7 @@ jobs:
           git config --global user.name ci
           git config --global user.email ci@example.com
       - run: npm test
+      - name: Install dev dependencies (type definitions only)
+        run: npm ci --no-audit --no-fund
+      - name: Type-check extension entry points
+        run: npm run typecheck
