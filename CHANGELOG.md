@@ -53,6 +53,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `quality-on-write`: end-of-run notifications say "checks" instead of "typecheck".
 - `ask-user`: the tool definition grows by about 70 tokens (about 440 total) for the `preview` field.
 - `subagent`: `/orchestrate` is plan-first. The main session clarifies, sends scouts, writes a plan where each step names its files, a done-when check and an owner (workers by default) plus a dispatch order, and waits for approval. It then writes one shared brief for workers, runs the groups in order, audits each report against its step, keeps shared files (changelog, root README) for itself, and verifies the combined result before the review. About 1,100 tokens, up from about 350.
+- `subagent`: the bundled `worker` reads the task's brief file first, keeps the diff small (no `_v2` copies, no unrequested settings or abstractions), runs the task's done-when check before claiming success, and owns no git state in the shared tree (no commit, stash, reset or `git clean`). In its own worktree (`pi-subagent/*` branch) it commits its work so the orchestrator can merge it. Its report adds per-item status, commits and open questions.
 
 ### Removed
 
