@@ -36,10 +36,10 @@ test('notify: handlers notify only for long, non-aborted runs; prompt timer canc
   const origWrite = process.stdout.write;
   try {
     fs.mkdirSync(path.join(home, '.pi', 'agent'), { recursive: true });
-    fs.writeFileSync(path.join(home, '.pi', 'agent', 'notify.json'), JSON.stringify({ method: 'osc', minSeconds: 0.05 }));
+    fs.writeFileSync(path.join(home, '.pi', 'agent', 'notify.json'), JSON.stringify({ method: 'osc', minSeconds: 0.05, suppressWhenFocused: false }));
     const pi = fakePi();
     loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
-    assert.deepEqual(Object.keys(pi.handlers).sort(), ['agent_settled', 'agent_start', 'session_shutdown', 'ui_prompt_end', 'ui_prompt_start']);
+    assert.deepEqual(Object.keys(pi.handlers).sort(), ['agent_end', 'agent_settled', 'agent_start', 'session_shutdown', 'ui_prompt_end', 'ui_prompt_start']);
     process.stdout.write = (s) => { if (String(s).startsWith('\x1b]')) writes.push(String(s)); else return origWrite.call(process.stdout, s); return true; };
     const ctx = fakeCtx('/x/proj');
 
@@ -61,6 +61,22 @@ test('notify: handlers notify only for long, non-aborted runs; prompt timer canc
     await new Promise((r) => setTimeout(r, 90));
     assert.equal(writes.length, 2);
     assert.match(writes[1], /Waiting for you: Allow\?/);
+
+    // A run that ended in error pings even when short, with the error title; a later success clears it.
+    const settle = async () => { await new Promise((r) => setImmediate(r)); };
+    await pi.handlers.agent_start[0]({});
+    await pi.handlers.agent_end[0]({ messages: [{ role: 'assistant', stopReason: 'error', errorMessage: 'boom' }] });
+    await pi.handlers.agent_settled[0]({ aborted: false }, ctx);
+    await settle();
+    assert.equal(writes.length, 3);
+    assert.match(writes[2], /Pi - proj - error;Run ended with an error.*: boom/);
+    await pi.handlers.agent_end[0]({ messages: [{ role: 'assistant', stopReason: 'error', errorMessage: 'x' }] });
+    await pi.handlers.agent_end[0]({ messages: [{ role: 'assistant', stopReason: 'stop' }] });
+    await new Promise((r) => setTimeout(r, 70));
+    await pi.handlers.agent_settled[0]({ aborted: false }, ctx);
+    await settle();
+    assert.equal(writes.length, 4); // plain settled (long enough), not an error
+    assert.match(writes[3], /Ready for input/);
     await pi.handlers.session_shutdown[0]({}, ctx);
   } finally {
     process.stdout.write = origWrite;

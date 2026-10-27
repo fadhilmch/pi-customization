@@ -14,6 +14,7 @@ function lines(produce: (width: number) => string[]) {
 const Option = Type.Object({
   label: Type.String({ description: "Choice text, 1-5 words. Put '(Recommended)' at the end of the recommended one." }),
   description: Type.String({ description: "One short sentence on what this choice means or implies." }),
+  preview: Type.Optional(Type.String({ description: "Optional code, config or mockup text shown while this option is focused (max 2000 chars)." })),
 });
 
 const Question = Type.Object({
@@ -30,7 +31,8 @@ const Params = Type.Object({
 const DESCRIPTION =
   "Ask the user 1-4 multiple-choice questions at once, with 2-4 options each; an 'Other' free-text choice is added automatically. " +
   "Use it only when a decision is the user's and cannot be inferred from the code or sensible defaults. " +
-  "Put the recommended option first and end its label with '(Recommended)'. Returns the user's answers.";
+  "Put the recommended option first and end its label with '(Recommended)'. Returns the user's answers. " +
+  "Give an option a 'preview' only when choices are best compared as concrete text (code, config, layout mockups); skip it for plain preferences.";
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool({

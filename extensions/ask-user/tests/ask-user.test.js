@@ -286,3 +286,53 @@ test('runAsk: an already aborted signal does not open the picker', async () => {
   assert.equal(called, false);
   assert.equal(r.details.status, 'declined');
 });
+
+// ---- option previews ----
+
+const withPreview = () => [
+  { question: 'Layout?', header: 'Layout', options: [
+    { label: 'A', description: 'a', preview: '+--+\n|  |\n+--+' },
+    { label: 'B', description: 'b' } ] },
+];
+
+test('validate: preview keeps newlines and indentation, drops control chars, empty is omitted, long is capped', () => {
+  const v = validateQuestions([{ question: 'Q?', header: 'H', options: [
+    { label: 'A', description: '', preview: '\n  if (x) {\r\n\ty();\x1b[31m\n}\n\n' },
+    { label: 'B', description: '', preview: '   \n ' },
+    { label: 'C', description: '', preview: 'z'.repeat(5000) },
+    { label: 'D', description: '', preview: 42 } ] }]);
+  assert.equal(v.ok, true);
+  const o = v.questions[0].options;
+  assert.equal(o[0].preview, '  if (x) {\n  y();[31m\n}');
+  assert.ok(!('preview' in o[1]) && !('preview' in o[3]));
+  assert.equal(o[2].preview.length, 2000);
+});
+
+test('picker render: preview of the focused option goes below on narrow, beside on wide, follows the cursor', () => {
+  const p = createPicker(withPreview());
+  const narrow = p.render(60).map(stripAnsi);
+  const at = narrow.findIndex((r) => r.includes('| |') || r.includes('|  |'));
+  assert.ok(at > narrow.findIndex((r) => r.includes('2. B')), 'preview rows come after the option list');
+  assert.ok(narrow.some((r) => /│ \+--\+/.test(r)));
+
+  const wide = p.render(120).map(stripAnsi);
+  const row = wide.find((r) => r.includes('1. A'));
+  assert.match(row, /│ \+--\+/); // same row as the first option
+  for (const r of p.render(120)) assert.ok(visibleWidth(r) <= 120);
+
+  p.press('down'); // B has no preview
+  assert.ok(!p.render(120).map(stripAnsi).join('\n').includes('+--+'));
+  p.press('down'); // Other
+  assert.ok(!p.render(60).map(stripAnsi).join('\n').includes('+--+'));
+});
+
+test('picker render: preview height is capped with a "more lines" row, widths stay fixed', () => {
+  const big = Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n');
+  const p = createPicker([{ question: 'Q?', header: 'H', options: [{ label: 'A', description: '', preview: big }, { label: 'B', description: '' }] }]);
+  const narrow = p.render(60).map(stripAnsi);
+  assert.ok(narrow.some((r) => /… 33 more lines/.test(r)));
+  assert.ok(!narrow.join('\n').includes('line 8'));
+  const wide = p.render(120).map(stripAnsi);
+  assert.ok(wide.some((r) => /… 27 more lines/.test(r)));
+  for (const w of [30, 60, 99, 100, 140]) for (const r of p.render(w)) assert.ok(visibleWidth(r) <= w, `width ${w}`);
+});

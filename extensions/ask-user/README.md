@@ -56,6 +56,12 @@ What you see: `⏺ AskUser(Scope +1)`, then a picker with a tab per question and
 | `Enter` on Other | type a free-text answer; `Enter` confirms, `Esc` goes back |
 | `Esc` | dismiss everything |
 
+Optional `preview` on an option (code, config or a layout mockup, line breaks kept, max 2000 characters): while that option is highlighted the picker shows it next to the option list on terminals 100 columns or wider, or under the list on narrower ones. Height is capped (14 rows beside, 8 below) and a longer preview ends with `… N more lines`. Options without a preview show nothing extra. The tool description tells the model to use previews only when choices are best compared as concrete text, not for plain preferences.
+
+```json
+{ "label": "Two columns", "description": "Sidebar plus content", "preview": "+------+---------+\n| nav  | content |\n+------+---------+" }
+```
+
 What the model gets back, for example:
 
 ```
@@ -66,7 +72,7 @@ Checks: Unit tests, Other: add a Windows run
 
 and in the transcript `  ⎿  Scope: Also trim edges` rows. If you press `Esc` the model is told you declined and continues on its own judgement.
 
-Limits the tool enforces (with a clear error result when violated): 1-4 questions, 2-4 options each, unique labels, unique headers of at most 12 characters, labels of at most 60 characters, no option named "Other".
+Limits the tool enforces (with a clear error result when violated): 1-4 questions, 2-4 options each, unique labels, unique headers of at most 12 characters, labels of at most 60 characters, previews of at most 2000 characters (cut, not rejected), no option named "Other".
 
 ## Config
 
@@ -76,7 +82,7 @@ None.
 
 `validate.js` checks input, `picker.js` is a pure state machine plus line renderer (so it is unit-tested without a terminal), `answers.js` formats the compact result text, `render.js` draws the claude-look rows, `ask.js` ties them together with an injected picker, `index.ts` wires Pi (`ctx.ui.custom`, key mapping). `ansi.js` is a copy of the claude-look helpers.
 
-The tool definition (description, parameter schema, prompt snippet and guideline) is about 370 tokens (about 1,480 characters / 4), paid on every turn while the extension is loaded.
+The tool definition (description, parameter schema, prompt snippet and guideline) is about 440 tokens (about 1,750 characters / 4; the `preview` field and its sentence in the description add roughly 70), paid on every turn while the extension is loaded.
 
 Without an interactive TUI (`pi -p`, `--mode json`, `--mode rpc`, or `ctx.hasUI` false) the tool returns at once with a result telling the model the user cannot be asked and to proceed with the recommended option or a sensible default and state the assumption. It never waits.
 
@@ -84,6 +90,7 @@ Plan mode: [`plan-mode`](../plan-mode/) only removes `write` and `edit` while pl
 
 ## Limits
 
+- Previews are plain text (no markdown rendering, no syntax colours), shown only while the option is highlighted, and not repeated in the answer sent back to the model.
 - Models only use it as well as the short guideline persuades them; nothing forces a model to ask.
 - RPC clients get the non-UI fallback; there is no RPC dialog version of the picker.
 - With `auto-mode` in `ask` mode, unknown tools such as this one may trigger an approval prompt before the picker opens.
