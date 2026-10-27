@@ -48,6 +48,17 @@ From npm (once published): `pi install npm:@fadhilmch/pi-subagent`. See the [roo
 
 ![/agents panel](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/subagent-agents.png)
 
+### /orchestrate
+
+The main session is the planner and does not write the feature code itself.
+
+1. Understand: it asks you if the goal is unclear, then sends scouts for recon.
+2. Plan: each step names its files, a done-when check, what it depends on, and an owner. Owners are workers by default; the main session keeps only shared files (changelog, root README) and small glue. The plan ends with a dispatch order such as `G1: step 1 (worker) -> G2: steps 2, 3 (parallel) -> me: 4, 5`. It then stops and waits for your approval.
+3. Build: it writes one shared brief file for the workers, runs the groups in order, and checks each report against its step before the next group starts.
+4. Finish: it applies the shared-file edits, merges any worker branches, runs the tests on the combined result, has one reviewer check the final diff, and commits without pushing.
+
+About 1,100 tokens of instructions, paid only on turns that use it.
+
 The tool takes exactly one mode:
 
 ```text
@@ -63,7 +74,7 @@ Each item can set `cwd`. A chain stops at the first failed step. If a step has n
 | Agent | Tools | Defaults | Use it for |
 |---|---|---|---|
 | `scout` | read, grep, find, ls | thinking `low`, no AGENTS.md/CLAUDE.md, 6k-char report | Finding code, tracing callers, reading docs or logs. Read-only and the cheapest agent. |
-| `worker` | read, grep, find, ls, bash, edit, write | auto-mode + quality-on-write in the child, 6k-char report | One well-specified, independent piece of a plan |
+| `worker` | read, grep, find, ls, bash, edit, write | auto-mode + quality-on-write in the child, 6k-char report | One well-specified, independent piece of a plan. Reads the task's brief file first, keeps the diff small, runs the task's check. Never commits in the shared tree; commits on its own branch when it runs in a worktree. |
 | `reviewer` | read, grep, find, ls, bash | auto-mode in the child, 8k-char report | One review of a finished diff |
 
 Every agent inherits your current model unless it names one, so they work with any provider. The thinking level is inherited too, unless the agent sets one or pins its own model (`scout` sets `low`). Inheriting means a `scout` costs as much per token as your main session. To make it cheap, pin a small model for it in `~/.pi/agent/subagent.json`:
