@@ -266,3 +266,17 @@ test('/auto log and /auto test parse and run', async () => {
   assert.doesNotMatch(out[4], / ls /);
   assert.match(formatLog([]), /no decisions/);
 });
+
+test('gate: branch guard reads the branch of the git -C target, not the session directory', async () => {
+  const git = (dir, ...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], { cwd: dir, encoding: 'utf8' });
+  const onMain = path.join(root, 'repo-main');
+  const onFeature = path.join(root, 'repo-feature');
+  for (const d of [onMain, onFeature]) { fs.mkdirSync(d); git(d, 'init', '-q', '-b', 'main'); }
+  git(onFeature, 'checkout', '-q', '-b', 'feature/x');
+  // Session runs in the feature repo; -C points at the repo on main.
+  const st = createState({ home, env: {}, tmpRoots });
+  const askedFor = async (command) => { const c = Object.assign(fakeCtx('Deny'), { cwd: onFeature }); await gate(bashEvent(command), c, st); return c.calls.length; };
+  assert.equal(await askedFor(`git -C ${onMain} commit -m x`), 1, 'target repo is on main: asks');
+  assert.equal(await askedFor(`git -C ${onFeature} commit -m x`), 0, 'target repo is on a feature branch');
+  assert.equal(await askedFor('git commit -m x'), 0, 'session directory is on a feature branch');
+});
