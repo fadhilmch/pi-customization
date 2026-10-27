@@ -81,6 +81,6 @@ node extensions/claude-look/scripts/preview.mjs [after|before] [width]
 - After `/claude-look`, tool calls and messages already on screen keep their old look (Pi resolves a tool's renderer when it is drawn); new ones follow the mode. `/reload` or a new session redraws everything.
 - Tool output follows the active theme's `success`, `error`, `toolOutput`, `dim` and `text` colours (`palette.js`). Pi themes have no diff background key, so the add/remove backgrounds are chosen by the theme's `text` colour: dark text gives light green/red (`#c7f0cf`/`#ffd6dc`), otherwise the dark ones. This reads truecolor only; on a 256-colour terminal or a theme with unusual colours it falls back to the dark defaults.
 - Edit diff parsing assumes Pi's display diff lines start with `+`, `-` or a space.
-- Not done: rounded input-box editor (see `vim-editor` for the modal editor) and a todo widget (see `todo`).
+- Not done: rounded input-box editor (see [`pi-vimmode`](https://www.npmjs.com/package/pi-vimmode) for a modal editor) and a todo widget (see `todo`).
 - The working line and `/claude-look` were not run in a live interactive Pi session; only unit tests with a fake `ui` and a command-registration check over RPC.
 - Never run in a live Pi session by the author; only unit tests, a headless import check and a command-registration check over RPC.
