@@ -15,7 +15,7 @@ async function show(ctx: any, panel: (width: number) => string[], text: () => st
   if (ctx.mode !== "tui") return ctx.ui.notify(text(), "info");
   // Runtime import from Pi; keeps this module loadable without it.
   const { matchesKey } = await import("@earendil-works/pi-tui");
-  await ctx.ui.custom<void>(
+  await ctx.ui.custom(
     (_tui: any, _theme: any, _kb: any, done: (v: void) => void) => ({
       render: panel,
       invalidate() {},

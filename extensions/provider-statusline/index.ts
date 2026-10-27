@@ -60,7 +60,7 @@ function getContextPct(ctx: ExtensionContext): number {
   const usage = ctx.getContextUsage();
   const max = ctx.model?.contextWindow ?? 0;
   if (!usage || !max) return 0;
-  return Math.max(0, Math.min(100, (usage.tokens / max) * 100));
+  return Math.max(0, Math.min(100, ((usage.tokens ?? 0) / max) * 100));
 }
 
 type Config = ReturnType<typeof loadConfig>;
@@ -239,9 +239,13 @@ export default function providerStatusline(pi: ExtensionAPI) {
     void refreshQuota(ctx);
   });
 
-  for (const eventName of ["thinking_level_select", "turn_end", "message_end"] as const) {
-    pi.on(eventName, async (_event, _ctx) => {
-      rerender();
-    });
-  }
+  pi.on("thinking_level_select", async () => {
+    rerender();
+  });
+  pi.on("turn_end", async () => {
+    rerender();
+  });
+  pi.on("message_end", async () => {
+    rerender();
+  });
 }

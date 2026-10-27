@@ -115,7 +115,7 @@ export default function (pi: ExtensionAPI) {
 
     async execute(_id: string, params: any, _signal: any, _onUpdate: any, ctx: any) {
       const text = (t: string, details: any, isError = false) => ({
-        content: [{ type: "text", text: t }],
+        content: [{ type: "text" as const, text: t }],
         details: { ...details, isError },
       });
       if (!planMode) {

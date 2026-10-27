@@ -36,7 +36,8 @@
     "typebox": "*"
   },
   "scripts": {
-    "test": "node --test \"extensions/*/tests/*.test.js\" \"tests/*.test.js\""
+    "test": "node --test \"extensions/*/tests/*.test.js\" \"tests/*.test.js\"",
+    "typecheck": "tsc -p ."
   },
   "homepage": "https://github.com/fadhilmch/pi-customization#readme",
   "bugs": {
@@ -44,5 +45,13 @@
   },
   "engines": {
     "node": ">=22.6"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^1.4.0",
+    "@earendil-works/pi-coding-agent": "^1.4.0",
+    "@earendil-works/pi-tui": "^1.4.0",
+    "@types/node": "^22.0.0",
+    "typebox": "^1.4.3",
+    "typescript": "^5.9.0"
   }
 }
