@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const { transformMarkdown } = require("./markdown.js");
 const { createLook, lines } = require("./mode.js");
+const { paletteFromTheme } = require("./palette.js");
 const { MODES, isMode, loadMode, saveMode } = require("./config.js");
 const { isHandled, formatCallLine, formatResult } = require("./tools.js");
 
@@ -46,13 +47,13 @@ export default function (pi: ExtensionAPI) {
     if (!isHandled(toolName) || look.mode() === "off") return next();
     return {
       renderShell: "self",
-      renderCall(args: any, _theme: any, context: any) {
+      renderCall(args: any, theme: any, context: any) {
         return lines((width) => {
           const state = context.isError ? "error" : context.isPartial || !context.executionStarted ? "pending" : "success";
-          return [formatCallLine(toolName, args, { state, cwd: context.cwd, width, pad: context.outputPad ?? 0 })];
+          return [formatCallLine(toolName, args, { state, cwd: context.cwd, width, pad: context.outputPad ?? 0, palette: paletteFromTheme(theme) })];
         });
       },
-      renderResult(result: any, options: any, _theme: any, context: any) {
+      renderResult(result: any, options: any, theme: any, context: any) {
         return lines((width) =>
           formatResult(toolName, result, {
             expanded: options.expanded,
@@ -61,6 +62,7 @@ export default function (pi: ExtensionAPI) {
             width,
             pad: context.outputPad ?? 0,
             compact: look.mode() === "compact",
+            palette: paletteFromTheme(theme),
           }),
         );
       },

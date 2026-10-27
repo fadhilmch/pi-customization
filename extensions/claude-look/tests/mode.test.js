@@ -129,3 +129,40 @@ test('config: default on, round trip, junk ignored, agent dir override', () => {
   assert.throws(() => saveMode('loud', { env }));
   assert.equal(agentDir({}, '/h'), path.join('/h', '.pi', 'agent'));
 });
+
+// Fake Pi Theme: getFgAnsi from a theme file's colours (vars resolved), truecolor.
+function themeFrom(name) {
+  const t = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'themes', `${name}.json`), 'utf8'));
+  return {
+    getFgAnsi(key) {
+      const v = t.colors[key];
+      const hex = t.vars[v] || v;
+      const n = parseInt(hex.slice(1), 16);
+      return `\u001b[38;2;${(n >> 16) & 255};${(n >> 8) & 255};${n & 255}m`;
+    },
+  };
+}
+
+test('palette: claude-dark output is identical to the defaults, claude-light gets light diff backgrounds', () => {
+  const { paletteFromTheme } = require('../palette.js');
+  const dark = paletteFromTheme(themeFrom('claude-dark'));
+  const light = paletteFromTheme(themeFrom('claude-light'));
+  const diff = ' 1 keep\n-2 old\n+2 new';
+  const text = 'hello\nworld';
+  const render = (palette) => [
+    tools.formatCallLine('bash', { command: 'ls' }, { state: 'success', palette }),
+    tools.formatCallLine('bash', { command: 'ls' }, { palette }),
+    ...tools.formatResult('edit', { content: [], details: { diff } }, { width: 60, palette }),
+    ...tools.formatResult('bash', { content: [{ type: 'text', text }] }, { width: 60, compact: true, palette }),
+    ...tools.formatResult('bash', { content: [{ type: 'text', text: 'x' }] }, { isError: true, palette }),
+    ...tools.formatResult('bash', {}, { isPartial: true, palette }),
+  ];
+  assert.deepEqual(render(dark), render(undefined));
+  const l = render(light).join('\n');
+  assert.match(l, /48;2;199;240;207/); // light add bg
+  assert.match(l, /48;2;255;214;220/); // light remove bg
+  assert.doesNotMatch(l, /48;2;34;92;43/);
+  assert.match(l, /38;2;44;122;57/); // light success bullet
+  assert.equal(paletteFromTheme(undefined), undefined);
+  assert.deepEqual(paletteFromTheme({ getFgAnsi: () => '\u001b[38;5;12m' }), {});
+});
