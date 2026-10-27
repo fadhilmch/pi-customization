@@ -124,7 +124,7 @@ Only when the active model's provider is `openai-codex` and `codexQuotaFetch` is
 - Codex quota depends on an unofficial endpoint (see above). Claude quota only appears after the first response that carries rate-limit headers (or via the file/command fallback).
 - Status text from other extensions is shown without its original colors.
 - Replaces Pi's default footer entirely; it conflicts with any other extension that calls `setFooter`.
-- The Vim editor that used to live here is now the separate `vim-editor` extension.
+- The Vim editor that used to live here was removed; use [`pi-vimmode`](https://www.npmjs.com/package/pi-vimmode) for modal Vim keys.
 
 ## Tests
 

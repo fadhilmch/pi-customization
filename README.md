@@ -14,21 +14,20 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 
 | Extension | What it does | Preview |
 |---|---|---|
-| [`claude-look`](extensions/claude-look/) | `⏺` bullets, `⏺ Bash(cmd)` tool lines with `⎿` output folded to 3 lines, red/green diffs, teal spinner, welcome box. Ships the `claude-dark` theme. | [png](docs/media/claude-look.png) |
-| [`auto-mode`](extensions/auto-mode/) | Rule-based gate: safe tool calls run silently, risky ones ask (force push, `rm -rf`, `sudo`, deploys, secrets, writes outside the project), catastrophic ones are blocked. `/auto`, `ctrl+alt+a`. | [png](docs/media/auto-mode.png) |
-| [`plan-mode`](extensions/plan-mode/) | Read-only research mode; approve a plan before anything is written. `/plan`, `ctrl+alt+p`, `pi --plan`. | [png](docs/media/plan-mode.png) |
-| [`todo`](extensions/todo/) | A `todo` tool for multi-step work, shown above the editor as `☒ ◼ ☐`. `/todos`. | [png](docs/media/todo.png) |
-| [`ask-user`](extensions/ask-user/) | `ask_user` tool (Claude Code's AskUserQuestion): the model asks 1-4 multiple-choice questions in a TUI picker, with an automatic "Other" free-text choice, instead of guessing. Falls back to "use your default" without a UI. | [png](docs/media/ask-user.png) |
-| [`subagent`](extensions/subagent/) | `subagent` tool: delegate read-heavy or parallel work to separate `pi` processes with their own model and tools; only a capped report comes back. Bundled `scout`/`worker`/`reviewer`, `/agents`, and `/orchestrate`, `/scout`, `/review` prompts. | [png](docs/media/subagent.png) |
-| [`usage-report`](extensions/usage-report/) | `/context` shows what fills the context window (system prompt, tools, messages, biggest tool results) to find token waste; `/cost` breaks down spend per model and subagent. | [context](docs/media/usage-report-context.png), [cost](docs/media/usage-report-cost.png) |
-| [`quick-memory`](extensions/quick-memory/) | Type `# note` in the editor to append it to `AGENTS.md` (project or user) instead of sending it to the model. | — (editor shortcut) |
-| [`output-diet`](extensions/output-diet/) | Folds long `bash` output (builds, tests, training and k8s logs) to head, error lines and tail, with the full text saved to a file, and replaces repeated identical `read`s with a one-line note. `/diet` shows tokens saved. | [png](docs/media/output-diet.png) |
-| [`git-checkpoint`](extensions/git-checkpoint/) | Snapshots the working tree (including untracked files) before each prompt without touching your index, stash or branches. `/rewind`. | [png](docs/media/git-checkpoint.png) |
+| [`claude-look`](extensions/claude-look/) | `⏺` bullets, `⏺ Bash(cmd)` tool lines with `⎿` output folded to 3 lines, red/green diffs, teal spinner with elapsed time and tokens, welcome box. `claude-dark` and `claude-light` themes; `/claude-look on\|compact\|off`. | [png](docs/media/claude-look.png) |
+| [`auto-mode`](extensions/auto-mode/) | Rule-based gate: safe tool calls run silently, risky ones ask (force push, `rm -rf`, `sudo`, deploys, secrets, writes outside the project, commits on `main`), catastrophic ones are blocked. `/auto`, `/auto test <cmd>` dry run, `/auto log`, `ctrl+alt+a`. | [png](docs/media/auto-mode.png) |
+| [`plan-mode`](extensions/plan-mode/) | Read-only research mode; approve (or edit) a plan before anything is written, with a diff when the plan is revised. Approved plans are saved to `.pi/plans/`. `/plan`, `ctrl+alt+p`, `pi --plan`. | [png](docs/media/plan-mode.png) |
+| [`todo`](extensions/todo/) | A `todo` tool for multi-step work, shown above the editor as `☒ ◼ ☐`. `/todos`, `/todos done <n>`. | [png](docs/media/todo.png) |
+| [`ask-user`](extensions/ask-user/) | `ask_user` tool (Claude Code's AskUserQuestion): the model asks 1-4 multiple-choice questions in a TUI picker, with an automatic "Other" free-text choice and optional per-option previews, instead of guessing. Falls back to "use your default" without a UI. | [png](docs/media/ask-user.png) |
+| [`subagent`](extensions/subagent/) | `subagent` tool: delegate read-heavy or parallel work to separate `pi` processes with their own model and tools; only a capped report comes back. Optional git-worktree isolation, background runs (`subagent_wait`) and turn limits. Bundled `scout`/`worker`/`reviewer`, `/agents`, and `/orchestrate`, `/scout`, `/review`, `/security-review` prompts. | [png](docs/media/subagent.png) |
+| [`usage-report`](extensions/usage-report/) | `/context` shows what fills the context window (system prompt, tools, messages, biggest tool results) to find token waste, and `/context <category>` previews one part; `/cost` breaks down spend per model and subagent, `/cost daily\|monthly` across all sessions. `--json` on both. | [context](docs/media/usage-report-context.png), [cost](docs/media/usage-report-cost.png) |
+| [`quick-memory`](extensions/quick-memory/) | Type `# note` in the editor to append it to `AGENTS.md` (project or user) instead of sending it to the model; secrets and duplicates are refused. `/memory` to edit, `/memory undo`. | — (editor shortcut) |
+| [`output-diet`](extensions/output-diet/) | Summarises noisy `bash` output for known commands (`git log`/`status`, test runners, `tsc`, `eslint`, installs, `grep`, `find`, `ls -R`) and folds other long logs to head, error lines and tail, with the full text saved to a file. Replaces repeated identical `read`s with a one-line note. `/diet` shows tokens saved per folder. | [png](docs/media/output-diet.png) |
+| [`git-checkpoint`](extensions/git-checkpoint/) | Snapshots the working tree (including untracked files) before each prompt without touching your index, stash or branches. `/rewind` restores everything or single files, optionally with the conversation; `/rewind diff <n>` shows what changed. | [png](docs/media/git-checkpoint.png) |
 | [`handoff`](extensions/handoff/) | Writes a focused prompt from the current session and starts a fresh one with it, instead of lossy compaction. `/handoff <goal>`. | [png](docs/media/handoff.png) |
-| [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you after a long run. | — (system notification) |
-| [`quality-on-write`](extensions/quality-on-write/) | Formats files after edits with the project's own formatter, then typechecks touched files and sends errors back to the model. | [png](docs/media/quality-on-write.png) |
-| [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota or cost, cwd, git branch, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
-| [`vim-editor`](extensions/vim-editor/) | Modal Vim keys for the prompt editor. | [png](docs/media/vim-editor.png) |
+| [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you or a run failed. Skips it while the terminal is focused, honours quiet hours, and can run a command (for example a phone push via ntfy). | — (system notification) |
+| [`quality-on-write`](extensions/quality-on-write/) | Formats files after edits with the project's own formatter, then typechecks and lints touched files (eslint, `ruff check`, `go vet`, `cargo check`) and sends errors back to the model. | [png](docs/media/quality-on-write.png) |
+| [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota with reset countdowns or cost (budget colours), cache hit %, cwd, git branch with dirty and ahead/behind markers, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
 
 ### Prompt templates
 
@@ -49,6 +48,25 @@ Install: they load with the whole package. To use one alone, copy the file into 
 Limits: the templates assume `git` (and, for `/pr`, a local base branch; they do not fetch). They were checked for loading and structure by tests, and their wording was written against the Pi docs; they have not been run end to end with a real model.
 
 Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`) and `midnight-aurora` (neon pink/teal/lime, in `themes/`).
+
+## Pairs well with
+
+Things this repo does not do, and does not plan to, because good Pi packages already exist. Install them next to it. Tool and command names were checked against ours from each package's README and npm metadata; none of them was run with this repo.
+
+| Need | Package | Install | Notes |
+|---|---|---|---|
+| Web search and fetch | [`pi-web-access`](https://github.com/nicobailon/pi-web-access) | `pi install npm:pi-web-access` | No name collisions. |
+| MCP servers | [`pi-mcp-adapter`](https://github.com/nicobailon/pi-mcp-adapter) | `pi install npm:pi-mcp-adapter` | No name collisions. |
+| Modal Vim keys | [`pi-vimmode`](https://github.com/pekochan069/pi-vimmode) | `pi install npm:pi-vimmode` | Replaces the old `vim-editor` extension (visual modes, operators, Ex commands, macros, `/vimmode off`). It replaces the editor, so only one editor extension can be active. |
+| Searchable long-term memory | [`pi-memory`](https://github.com/jayzeng/pi-memory) | `pi install npm:pi-memory` | No name collisions. Model-driven memory tools with search; `quick-memory` stays the zero-cost way to add a line to `AGENTS.md`. |
+| No-LLM compaction and recall | [`pi-vcc`](https://github.com/sting8k/pi-vcc) | see its README for the package name | Only replaces `/compact` when you turn it on. |
+| LSP diagnostics, linters, ast-grep | [`pi-lens`](https://github.com/apmantza/pi-lens) | `pi install npm:pi-lens` | Runs its own format/lint pipeline on every write: use it **instead of** `quality-on-write`, not with it. |
+| Plan review in a browser | [`@plannotator/pi-extension`](https://github.com/backnotprop/plannotator) | `pi install npm:@plannotator/pi-extension` | Its `/plannotator-review` and `/plannotator-annotate` work alongside us. Its own plan mode also binds `ctrl+alt+p`, which clashes with `plan-mode`; use one plan mode. |
+
+Use instead of parts of this repo, not with them:
+
+- [`pi-subagents`](https://github.com/nicobailon/pi-subagents) registers a tool also named `subagent` and its own `scout`/`reviewer` agents. It has more orchestration (fleet view, background runs, `/council`). Pick it or our `subagent`, not both.
+- [`pi-code`](https://github.com/ilovepixelart/pi-code) is a broad Claude Code clone that reads your `.claude/` folder (commands, skills, hooks, output styles) and adds `/goal`. It registers `/init`, `/context`, `/todos`, `/rewind`, `/agents` and `/plan`, all of which collide with ours. Use it or this repo.
 
 ## Install
 
