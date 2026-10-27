@@ -43,10 +43,21 @@ From npm (once published): `pi install npm:@fadhilmch/pi-subagent`. See the [roo
 | "use a scout to …", "run 3 scouts in parallel …" | You name the agent or mode and the model follows. |
 | `/scout <question>` | One `scout` call. The cheapest way to ask a codebase question without filling your context. |
 | `/review [focus]` | One `reviewer` call on the uncommitted diff. Its findings are relayed, nothing is changed. |
-| `/orchestrate <goal>` | The main session is the planner. It clarifies the goal, sends scouts for recon, then writes a plan where each step names its files, a done-when check and an owner (workers by default; itself only for shared files and small glue) plus a dispatch order, and waits for your approval. After that it writes one shared brief for the workers, runs the groups in order (parallel inside a group), audits each report against its step, applies shared-file edits itself, runs the tests on the combined result, and has one reviewer check the final diff. About 1,100 tokens of instructions. |
+| `/orchestrate <goal>` | The main session plans and integrates, scouts do recon, workers take independent pieces, and one reviewer checks the end result. See [/orchestrate](#orchestrate). |
 | `/agents` | Opens a panel listing every agent: source (bundled, user, project), the model it will actually run after config overrides, thinking level, tools, extensions it loads, and its description. It also says when project agents were skipped because the project is not trusted, and which agent files failed to parse. Plain text outside the TUI. |
 
 ![/agents panel](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/subagent-agents.png)
+
+### /orchestrate
+
+The main session is the planner and does not write the feature code itself.
+
+1. Understand: it asks you if the goal is unclear, then sends scouts for recon.
+2. Plan: each step names its files, a done-when check, what it depends on, and an owner. Owners are workers by default; the main session keeps only shared files (changelog, root README) and small glue. The plan ends with a dispatch order such as `G1: step 1 (worker) -> G2: steps 2, 3 (parallel) -> me: 4, 5`. It then stops and waits for your approval.
+3. Build: it writes one shared brief file for the workers, runs the groups in order, and checks each report against its step before the next group starts.
+4. Finish: it applies the shared-file edits, merges any worker branches, runs the tests on the combined result, has one reviewer check the final diff, and commits without pushing.
+
+About 1,100 tokens of instructions, paid only on turns that use it.
 
 The tool takes exactly one mode:
 
