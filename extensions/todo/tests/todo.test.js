@@ -91,3 +91,30 @@ test('call line and result lines', () => {
   assert.equal(stripAnsi(render.formatResult(list, { isPartial: true })[0]), '  ⎿  Updating…');
   assert.equal(render.plainList(list), '☒ Read code\n◼ Write fix\n☐ Run tests');
 });
+
+test('todo list survives compaction: rebuilt from the full branch, not the compacted context', () => {
+  // getBranch() returns every entry on the path (compaction does not delete them); the todo result sits
+  // BEFORE the compaction entry and outside the kept messages.
+  const entries = [
+    { type: 'message', id: '1', message: { role: 'user', content: 'go' } },
+    { type: 'message', id: '2', message: { role: 'toolResult', toolName: 'todo', details: { todos: list } } },
+    { type: 'message', id: '3', message: { role: 'assistant', content: 'working' } },
+    { type: 'compaction', id: '4', summary: 'summary', firstKeptEntryId: '3', tokensBefore: 1000 },
+    { type: 'message', id: '5', message: { role: 'user', content: 'continue' } },
+  ];
+  assert.deepEqual(state.restoreFromBranch(entries), list);
+  // A later update after compaction still wins.
+  const next = [{ content: 'Read code', status: 'completed' }];
+  entries.push({ type: 'message', id: '6', message: { role: 'toolResult', toolName: 'todo', details: { todos: next } } });
+  assert.deepEqual(state.restoreFromBranch(entries), next);
+});
+
+test('setItemStatus toggles by 1-based number and rejects bad numbers', () => {
+  const done = state.setItemStatus(list, '3', 'completed');
+  assert.equal(done.ok, true);
+  assert.equal(done.todos[2].status, 'completed');
+  assert.equal(list[2].status, 'pending', 'input is not mutated');
+  const undo = state.setItemStatus(list, 1, 'pending');
+  assert.equal(undo.todos[0].status, 'pending');
+  for (const n of ['0', '4', 'x', '1.5']) assert.equal(state.setItemStatus(list, n, 'completed').ok, false, n);
+});

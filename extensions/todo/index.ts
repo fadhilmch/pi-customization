@@ -8,6 +8,7 @@ const {
   normalizeTodos,
   widgetVisible,
   restoreFromBranch,
+  setItemStatus,
   seedFromSteps,
   resultText,
 } = require("./state.js");
@@ -141,8 +142,18 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("todos", {
-    description: "Show the todo list (/todos clear to empty it)",
+    description: "Show the todo list (/todos clear | done <n> | undo <n>)",
     handler: async (args: string, ctx: any) => {
+      const m = (args || "").trim().match(/^(done|undo)\s+(\d+)$/);
+      if (m) {
+        const r = setItemStatus(todos, m[2], m[1] === "done" ? "completed" : "pending");
+        if (!r.ok) return ctx.ui.notify(r.error, "warning");
+        todos = r.todos;
+        pi.appendEntry(SESSION_ENTRY_TYPE, { todos });
+        refreshWidget(ctx);
+        ctx.ui.notify(`Todos:\n${plainList(todos)}`, "info");
+        return;
+      }
       if ((args || "").trim() === "clear") {
         todos = [];
         pi.appendEntry(SESSION_ENTRY_TYPE, { todos });
