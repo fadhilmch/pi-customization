@@ -21,13 +21,28 @@ function restoreText(restores) {
   return `restores ${restores} file${restores === 1 ? '' : 's'}`;
 }
 
-/** One select row: "turn 4 · 5m ago · restores 3 files · fix the parser" (falls back to files-in-snapshot if `restores` is unknown) */
-function checkpointLabel(c, { now = Date.now(), currentSession = '', restores } = {}) {
-  const what = Number.isInteger(restores) ? restoreText(restores) : `${c.files} file${c.files === 1 ? '' : 's'}`;
+/** "+12 −3, 2 files" (changes made after the checkpoint), or "no changes since". */
+function statText(s) {
+  if (!s || s.files === 0) return 'no changes since';
+  return `+${s.added} −${s.deleted}, ${s.files} file${s.files === 1 ? '' : 's'}`;
+}
+
+/**
+ * One select row: "3. turn 4 · 5m ago · +12 −3, 2 files · fix the parser".
+ * `stats` = {added, deleted, files} of checkpoint -> current tree; falls back to `restores`, then files-in-snapshot.
+ * `index` = 1-based list position, the `<n>` accepted by /rewind diff <n> and /rewind <n> <path>.
+ */
+function checkpointLabel(c, { now = Date.now(), currentSession = '', restores, stats, index } = {}) {
+  const what = stats
+    ? statText(stats)
+    : Number.isInteger(restores)
+      ? restoreText(restores)
+      : `${c.files} file${c.files === 1 ? '' : 's'}`;
   const parts = [`turn ${c.turn}`, timeAgo(c.time, now), what];
   if (c.kind === 'pre-restore') parts.push('before rewind');
   if (currentSession && c.session && c.session !== currentSession) parts.push(`session ${c.session.slice(0, 8)}`);
-  return `${parts.join(' · ')} · ${c.prompt ? clip(c.prompt, 70) : '(no prompt)'}`;
+  const head = index ? `${index}. ` : '';
+  return `${head}${parts.join(' · ')} · ${c.prompt ? clip(c.prompt, 70) : '(no prompt)'}`;
 }
 
 function listPaths(paths, max = 8) {
@@ -46,7 +61,40 @@ function describePlan(plan) {
   return lines.join('\n');
 }
 
+/** Cap long text for a notification; says how much was cut. */
+function capText(text, { maxLines = 120, maxChars = 12000 } = {}) {
+  let lines = String(text).split('\n');
+  let cut = 0;
+  if (lines.length > maxLines) {
+    cut = lines.length - maxLines;
+    lines = lines.slice(0, maxLines);
+  }
+  let out = lines.join('\n');
+  if (out.length > maxChars) {
+    out = out.slice(0, maxChars);
+    cut = Math.max(cut, 1);
+  }
+  return cut ? `${out.trimEnd()}\n… truncated (${cut} more line${cut === 1 ? '' : 's'}); use git diff for the full patch` : out;
+}
+
+/** Text for `/rewind diff <n>`: header, stat, capped patch. */
+function diffReport(c, d, { paths = [] } = {}) {
+  const scope = paths.length ? ` (${paths.join(', ')})` : '';
+  const head = `Changes since checkpoint turn ${c.turn}${scope} (checkpoint -> current work tree)`;
+  if (!d.stat.trim()) return `${head}\nNo differences.`;
+  return `${head}\n\n${d.stat.trimEnd()}\n\n${capText(d.patch)}`;
+}
+
+/** Split a command line on whitespace, keeping "quoted segments" (single or double) together. */
+function splitArgs(s) {
+  const out = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m;
+  while ((m = re.exec(s))) out.push(m[1] ?? m[2] ?? m[3]);
+  return out;
+}
+
 const statusText = (c) => DIM(`⏺ checkpoint ${c.turn}`);
 const skipText = (reason) => DIM(`⏺ checkpoint skipped (${reason})`);
 
-module.exports = { restoreText, timeAgo, checkpointLabel, describePlan, listPaths, statusText, skipText };
+module.exports = { splitArgs, statText, capText, diffReport, restoreText, timeAgo, checkpointLabel, describePlan, listPaths, statusText, skipText };
