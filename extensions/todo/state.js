@@ -59,6 +59,15 @@ function restoreFromBranch(entries) {
   return todos;
 }
 
+// Manual toggle for /todos done|undo <n> (1-based). done -> completed, undo -> pending. Returns { ok, todos } or { ok:false, error }.
+function setItemStatus(todos, n, status) {
+  const idx = Number(n) - 1;
+  if (!Number.isInteger(idx) || idx < 0 || idx >= todos.length) {
+    return { ok: false, error: `No todo number ${n}; the list has ${todos.length} item${todos.length === 1 ? '' : 's'}.` };
+  }
+  return { ok: true, todos: todos.map((t, i) => (i === idx ? { ...t, status } : t)) };
+}
+
 // Turn plan steps into a fresh list: first step in_progress, the rest pending.
 function seedFromSteps(steps) {
   return (steps || [])
@@ -76,4 +85,4 @@ function resultText(todos, warnings = []) {
   return text;
 }
 
-module.exports = { STATUSES, SESSION_ENTRY_TYPE, SEED_EVENT, normalizeTodos, counts, allDone, widgetVisible, restoreFromBranch, seedFromSteps, resultText };
+module.exports = { STATUSES, SESSION_ENTRY_TYPE, SEED_EVENT, normalizeTodos, counts, allDone, widgetVisible, restoreFromBranch, setItemStatus, seedFromSteps, resultText };
