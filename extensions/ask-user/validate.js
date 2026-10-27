@@ -1,9 +1,19 @@
 'use strict';
 // Input validation for ask_user. Pure: returns { ok, questions } (trimmed copies) or { ok: false, error }.
 
-const LIMITS = { minQuestions: 1, maxQuestions: 4, minOptions: 2, maxOptions: 4, maxHeader: 12, maxLabel: 60 };
+const LIMITS = { minQuestions: 1, maxQuestions: 4, minOptions: 2, maxOptions: 4, maxHeader: 12, maxLabel: 60, maxPreview: 2000 };
 
 const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+
+// Preview keeps its line breaks and indentation (it is code or a mockup); only control characters go.
+const cleanPreview = (s) =>
+  String(s ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\t/g, '  ')
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, '')
+    .trimEnd()
+    .replace(/^\n+/, '')
+    .slice(0, 2000);
 
 function validateQuestions(input) {
   const L = LIMITS;
@@ -38,7 +48,10 @@ function validateQuestions(input) {
       if (/^other\b/i.test(label)) return { ok: false, error: `${oat}.label "${label}" looks like "Other"; that choice is added automatically.` };
       if (labels.has(label.toLowerCase())) return { ok: false, error: `${at} has a duplicate option label "${label}".` };
       labels.add(label.toLowerCase());
-      options.push({ label, description: clean(o.description) });
+      const option = { label, description: clean(o.description) };
+      const preview = typeof o.preview === 'string' ? cleanPreview(o.preview) : '';
+      if (preview.trim()) option.preview = preview;
+      options.push(option);
     }
     out.push({ question, header, options, multiSelect: q.multiSelect === true });
   }
