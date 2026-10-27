@@ -291,3 +291,42 @@ test('paths: glob matching and sensitive detection', () => {
   assert.equal(P.writeKind('/p/.git/config'), '.git internals');
   assert.equal(P.writeKind('/p/.gitignore'), null);
 });
+
+test('branch guard: commit and push on a protected branch ask', () => {
+  const cfg = mergeConfigs({}, {});
+  const on = (branch, command) => bash(command, { config: cfg, currentBranch: branch });
+  assert.equal(on('main', 'git commit -m x').action, 'ask');
+  assert.match(on('main', 'git commit -m x').reason, /protected branch main/);
+  assert.equal(on('master', 'git add -A && git commit -m x').action, 'ask');
+  assert.equal(on('feature/x', 'git commit -m x').action, 'allow');
+  assert.equal(on(null, 'git commit -m x').action, 'allow', 'detached HEAD / no repo');
+  assert.equal(on('main', 'git commit --dry-run').action, 'allow');
+  assert.equal(on('main', 'git status').action, 'allow');
+  assert.equal(bash('git commit -m x', { config: cfg }).action, 'allow', 'unknown branch: no guard');
+  // lazy branch lookup is only called for commit/push
+  let calls = 0;
+  bash('ls', { config: cfg, currentBranch: () => { calls++; return 'main'; } });
+  assert.equal(calls, 0);
+  assert.equal(bash('git commit -m x', { config: cfg, currentBranch: () => 'main' }).action, 'ask');
+});
+
+test('branch guard: push finding only when the push targets the current branch', () => {
+  const cfg = mergeConfigs({}, {});
+  const ids = (command, branch = 'main') => bash(command, { config: cfg, currentBranch: branch }).findings.map((f) => f.id);
+  assert.ok(ids('git push').includes('branch-guard'));
+  assert.ok(ids('git push origin main').includes('branch-guard'));
+  assert.ok(ids('git push origin HEAD').includes('branch-guard'));
+  assert.ok(ids('git push origin HEAD:main').includes('branch-guard'));
+  assert.ok(!ids('git push origin feature/x').includes('branch-guard'));
+  assert.ok(!ids('git push', 'feature/x').includes('branch-guard'));
+  assert.equal(bash('git push origin feature/x', { config: cfg, currentBranch: 'main' }).action, 'ask', 'plain push still asks');
+});
+
+test('branch guard config: user list replaces default, project only adds', () => {
+  assert.deepEqual(mergeConfigs({}, {}).protectedBranches, ['main', 'master']);
+  assert.deepEqual(mergeConfigs({ protectedBranches: ['trunk'] }, {}).protectedBranches, ['trunk']);
+  assert.deepEqual(mergeConfigs({ protectedBranches: ['trunk'] }, { protectedBranches: ['dev', 'trunk'] }).protectedBranches, ['trunk', 'dev']);
+  assert.deepEqual(mergeConfigs({}, { protectedBranches: ['dev'] }).protectedBranches, ['main', 'master', 'dev']);
+  const cfg = mergeConfigs({ protectedBranches: [] }, {});
+  assert.equal(bash('git commit -m x', { config: cfg, currentBranch: 'main' }).action, 'allow', 'user can disable the guard');
+});
