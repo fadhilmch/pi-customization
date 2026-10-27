@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const BUNDLED_DIR = path.join(__dirname, 'agents');
 const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+const ISOLATION_MODES = ['none', 'worktree'];
 const NAME_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 function agentDir(env = process.env, home = os.homedir()) {
@@ -103,6 +104,9 @@ function parseAgent(text, { filePath = '', source = 'user' } = {}) {
   const thinking = typeof data.thinking === 'string' ? data.thinking.trim().toLowerCase() : undefined;
   if (thinking && !THINKING_LEVELS.includes(thinking)) return { error: `${filePath}: thinking must be one of ${THINKING_LEVELS.join(', ')}` };
   const maxOutput = Number(data.maxOutput);
+  const maxTurns = Number(data.maxTurns);
+  const isolation = typeof data.isolation === 'string' ? data.isolation.trim().toLowerCase() : undefined;
+  if (isolation && !ISOLATION_MODES.includes(isolation)) return { error: `${filePath}: isolation must be one of ${ISOLATION_MODES.join(', ')}` };
   return {
     name,
     description: data.description.trim(),
@@ -114,6 +118,8 @@ function parseAgent(text, { filePath = '', source = 'user' } = {}) {
     mcp: bool(data.mcp, false),
     contextFiles: bool(data.contextFiles, true),
     maxOutput: Number.isFinite(maxOutput) && maxOutput > 0 ? Math.floor(maxOutput) : undefined,
+    maxTurns: Number.isFinite(maxTurns) && maxTurns > 0 ? Math.floor(maxTurns) : undefined,
+    isolation: isolation === 'worktree' ? 'worktree' : undefined,
     systemPrompt: body.trim(),
     source,
     filePath,
@@ -175,19 +181,23 @@ function applyOverrides(agent, config = {}) {
   const out = { ...agent };
   const model = config.models?.[agent.name];
   const thinking = config.thinking?.[agent.name];
+  const maxTurns = config.maxTurns?.[agent.name];
   if (typeof model === 'string' && model.trim()) out.model = model.trim() === 'inherit' ? undefined : model.trim();
   if (typeof thinking === 'string' && THINKING_LEVELS.includes(thinking)) out.thinking = thinking;
+  if (Number.isFinite(maxTurns) && maxTurns > 0) out.maxTurns = maxTurns;
   return out;
 }
 
 function describeAgent(a) {
   const tools = a.tools.length ? a.tools.join(',') : 'default';
-  return `${a.name} (${a.source}) · model: ${a.model || 'inherit'}${a.thinking ? `:${a.thinking}` : ''} · tools: ${tools} · ${a.description}`;
+  const extra = [a.maxTurns ? `max ${a.maxTurns} turns` : '', a.isolation ? `isolation: ${a.isolation}` : ''].filter(Boolean).map((x) => ` · ${x}`).join('');
+  return `${a.name} (${a.source}) · model: ${a.model || 'inherit'}${a.thinking ? `:${a.thinking}` : ''} · tools: ${tools}${extra} · ${a.description}`;
 }
 
 module.exports = {
   BUNDLED_DIR,
   THINKING_LEVELS,
+  ISOLATION_MODES,
   agentDir,
   parseFrontmatter,
   parseAgent,
