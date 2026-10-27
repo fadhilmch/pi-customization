@@ -14,6 +14,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Demo: the fake provider can script subagent child processes (`child(task)` in a scenario), plus `subagent` and `usage-report` tapes.
 - `ask-user`: an `ask_user` tool (Claude Code's AskUserQuestion) that asks 1-4 multiple-choice questions in a TUI picker (single or multi-select, automatic "Other" free text, review tab) and returns compact answers; returns immediately with a "use your default" result in print/JSON/RPC mode; stays available in plan mode. Includes an `ask-user` demo scenario and tape.
 - `output-diet`: folds long `bash` results to head, error lines and tail (full output saved to a 0600 temp file, or Pi's own `full_output_path`), replaces repeated identical `read`s with a short note, and `/diet` shows the estimated tokens saved. Config in `~/.pi/agent/output-diet.json`; a project `.pi/output-diet.json` can only tighten. Demo scenario and tape included.
+- README: "Pairs well with" section listing Pi packages for what this repo does not cover (web access, MCP, Vim keys, searchable memory, no-LLM compaction, LSP, plan review) and the two that replace parts of it (`pi-subagents`, `pi-code`), with the name collisions found.
+
+### Removed
+
+- `vim-editor`: removed in favour of [`pi-vimmode`](https://github.com/pekochan069/pi-vimmode), which has visual modes, operators, Ex commands and macros. Uninstall: drop `extensions/vim-editor/index.ts` from your package filter, or delete `~/.pi/agent/extensions/vim-editor` if you copied the folder.
 
 ### Fixed
 
