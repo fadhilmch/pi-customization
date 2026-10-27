@@ -90,21 +90,25 @@ function isFailed(run) {
   return run.status === 'failed' || run.status === 'aborted';
 }
 
-function finish(run, { exitCode, aborted = false, timedOut = false } = {}) {
+// truncated: we stopped the child at its turn limit; the partial report counts as a result, not a failure.
+function finish(run, { exitCode, aborted = false, timedOut = false, truncated = false } = {}) {
   run.exitCode = exitCode;
   run.endedAt = Date.now();
   if (aborted) run.status = 'aborted';
   else if (timedOut) {
     run.status = 'failed';
     run.errorMessage = run.errorMessage || 'timed out';
+  } else if (truncated) {
+    run.status = 'done';
+    run.truncated = true;
   } else if (exitCode !== 0 || run.stopReason === 'error' || run.stopReason === 'aborted') run.status = 'failed';
   else run.status = 'done';
   return run;
 }
 
 // Spawn the child and resolve with the finished run (never rejects).
-// opts: { command, args, cwd, env, signal, timeoutMs, onUpdate(run), spawn }
-function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdate, spawn = nodeSpawn, platform = process.platform } = {}) {
+// opts: { command, args, cwd, env, signal, timeoutMs, maxTurns, onUpdate(run), spawn }
+function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, maxTurns = 0, onUpdate, spawn = nodeSpawn, platform = process.platform } = {}) {
   return new Promise((resolve) => {
     // Never start a child for a call that was already cancelled (queued parallel tasks, chain steps).
     if (signal?.aborted) return resolve(finish(run, { exitCode: 1, aborted: true }));
@@ -128,6 +132,7 @@ function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdat
     let buffer = '';
     let aborted = false;
     let timedOut = false;
+    let turnLimited = false;
     let settled = false;
     let lastEmit = 0;
     let pending = null;
@@ -152,6 +157,11 @@ function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdat
         return;
       }
       if (applyEvent(run, event)) emit(false);
+      // The turn ended with tool calls pending, so the child would go on: stop it here.
+      if (maxTurns > 0 && !turnLimited && run.turns >= maxTurns && run.stopReason === 'toolUse' && event.type === 'message_end') {
+        turnLimited = true;
+        kill();
+      }
     };
 
     const signalTree = (sig) => {
@@ -201,7 +211,7 @@ function runChild(run, { command, args, cwd, env, signal, timeoutMs = 0, onUpdat
       if (pending) clearTimeout(pending);
       if (exitTimer) clearTimeout(exitTimer);
       signal?.removeEventListener?.('abort', onAbort);
-      finish(run, { exitCode: code ?? (aborted || timedOut || sig ? 1 : 0), aborted, timedOut });
+      finish(run, { exitCode: code ?? (aborted || timedOut || sig || turnLimited ? 1 : 0), aborted, timedOut, truncated: turnLimited });
       emit(true);
       resolve(run);
     };

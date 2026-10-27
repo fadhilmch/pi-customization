@@ -1,6 +1,7 @@
 'use strict';
 // What the parent model receives (kept small on purpose) and the usage numbers shown to the user.
 const { isFailed } = require('./run.js');
+const { worktreeNote } = require('./worktree.js');
 
 function capText(text, maxChars) {
   const s = String(text ?? '').trim();
@@ -29,6 +30,10 @@ function totalUsage(runs) {
   return t;
 }
 
+function formatCost(cost) {
+  return cost ? `$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}` : '';
+}
+
 // "↑18k ↓640 R12k $0.012"
 function formatUsage(u) {
   if (!u) return '';
@@ -36,7 +41,7 @@ function formatUsage(u) {
   if (u.input) parts.push(`↑${formatTokens(u.input)}`);
   if (u.output) parts.push(`↓${formatTokens(u.output)}`);
   if (u.cacheRead) parts.push(`R${formatTokens(u.cacheRead)}`);
-  if (u.cost) parts.push(`$${u.cost < 0.01 ? u.cost.toFixed(4) : u.cost.toFixed(3)}`);
+  if (u.cost) parts.push(formatCost(u.cost));
   return parts.join(' ');
 }
 
@@ -51,8 +56,17 @@ function reportCap(run, maxChars) {
   return Math.min(...[run.budget, maxChars].filter((n) => Number.isFinite(n) && n > 0)) || undefined;
 }
 
+// Lines appended after the capped report so the cap never cuts them: a turn-limit stop and where a worktree's changes are.
+function runNotes(run) {
+  const notes = [];
+  if (run.truncated) notes.push(`[truncated: stopped at the turn limit (${run.maxTurns} turns); this is the partial report]`);
+  const wt = worktreeNote(run);
+  if (wt) notes.push(wt);
+  return notes.length ? `\n\n${notes.join('\n')}` : '';
+}
+
 function runReport(run, maxChars) {
-  return isFailed(run) ? `FAILED: ${failureReason(run)}` : capText(run.output || '(no output)', reportCap(run, maxChars));
+  return (isFailed(run) ? `FAILED: ${failureReason(run)}` : capText(run.output || '(no output)', reportCap(run, maxChars))) + runNotes(run);
 }
 
 // Text for the parent model. Single and chain return only the (last) report; parallel labels each one.
@@ -65,12 +79,15 @@ function modelText(mode, runs, { maxChars } = {}) {
   if (mode === 'chain') {
     const last = runs[runs.length - 1];
     if (!last) return 'Chain did not run.';
-    if (isFailed(last)) return `Chain stopped at step ${runs.length} (${last.agent}): ${failureReason(last)}`;
-    return capText(last.output || '(no output)', reportCap(last, maxChars));
+    // Earlier steps' worktrees would otherwise go unmentioned: only the last report is returned.
+    const earlier = runs.slice(0, -1).map(worktreeNote).filter(Boolean);
+    const tail = earlier.length ? `\n${earlier.join('\n')}` : '';
+    if (isFailed(last)) return `Chain stopped at step ${runs.length} (${last.agent}): ${failureReason(last)}${runNotes(last)}${tail}`;
+    return capText(last.output || '(no output)', reportCap(last, maxChars)) + runNotes(last) + tail;
   }
   const r = runs[0];
   if (!r) return 'Subagent did not run.';
-  return isFailed(r) ? `Subagent ${r.agent} failed: ${failureReason(r)}` : capText(r.output || '(no output)', reportCap(r, maxChars));
+  return (isFailed(r) ? `Subagent ${r.agent} failed: ${failureReason(r)}` : capText(r.output || '(no output)', reportCap(r, maxChars))) + runNotes(r);
 }
 
-module.exports = { capText, formatTokens, formatDuration, totalUsage, formatUsage, failureReason, runReport, modelText };
+module.exports = { capText, formatCost, formatTokens, formatDuration, totalUsage, formatUsage, failureReason, runReport, modelText };

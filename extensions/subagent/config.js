@@ -11,11 +11,13 @@ const DEFAULTS = Object.freeze({
   extensions: [], // loaded into every child, e.g. a custom provider extension the child needs to reach its model
   models: {}, // { agentName: "provider/model" | "inherit" }
   thinking: {}, // { agentName: thinking level }
+  maxTurns: {}, // { agentName: turn limit }, overrides the agent file
   maxOutputChars: 12000, // per child result returned to the parent model (about 3k tokens)
   maxParallel: 6,
   concurrency: 3,
   timeoutMinutes: 20,
   maxDepth: 1, // children cannot delegate further
+  maxSpawns: 64, // children started per session, across all calls
 });
 
 function int(v, fallback, min, max) {
@@ -34,17 +36,30 @@ function stringMap(v, allowed) {
   return out;
 }
 
+// { name: n } with n clamped to min..max; entries that are not numbers are dropped.
+function intMap(v, min, max) {
+  const out = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, x] of Object.entries(v)) {
+    const n = Number(x);
+    if (Number.isFinite(n)) out[k] = Math.min(max, Math.max(min, Math.floor(n)));
+  }
+  return out;
+}
+
 function parseConfig(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULTS };
   return {
     extensions: Array.isArray(raw.extensions) ? raw.extensions.filter((x) => typeof x === 'string' && x.trim()) : [],
     models: stringMap(raw.models),
     thinking: stringMap(raw.thinking, THINKING_LEVELS),
+    maxTurns: intMap(raw.maxTurns, 1, 1000),
     maxOutputChars: int(raw.maxOutputChars, DEFAULTS.maxOutputChars, 500, 200000),
     maxParallel: int(raw.maxParallel, DEFAULTS.maxParallel, 1, 16),
     concurrency: int(raw.concurrency, DEFAULTS.concurrency, 1, 8),
     timeoutMinutes: int(raw.timeoutMinutes, DEFAULTS.timeoutMinutes, 0, 24 * 60),
     maxDepth: int(raw.maxDepth, DEFAULTS.maxDepth, 0, 3),
+    maxSpawns: int(raw.maxSpawns, DEFAULTS.maxSpawns, 1, 1000),
   };
 }
 
