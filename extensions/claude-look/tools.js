@@ -5,6 +5,7 @@ const HANDLED = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls'])
 const DISPLAY_NAMES = { bash: 'Bash', read: 'Read', edit: 'Update', write: 'Write', grep: 'Search', find: 'Search', ls: 'List' };
 const COLLAPSED_LINES = 3;
 const COLLAPSED_DIFF_LINES = 20;
+const COMPACT_LINES = 1; // /claude-look compact: fold to one line, diffs to one row
 const RESULT_PREFIX = '  ⎿  ';
 const CONT_PREFIX = '     ';
 
@@ -46,11 +47,11 @@ function foldLine(hidden) {
 }
 
 // Generic text result: first row gets "  ⎿  ", the rest indent 5 spaces. Long lines wrap (never truncate),
-// leading/trailing blank lines are dropped. Collapsed: first 3 source lines, then a fold line counted in source lines.
-function formatTextResult(text, { expanded = false, isError = false, width = 80, pad = 0 } = {}) {
+// leading/trailing blank lines are dropped. Collapsed: first 3 source lines (1 when compact), then a fold line counted in source lines.
+function formatTextResult(text, { expanded = false, isError = false, width = 80, pad = 0, compact = false } = {}) {
   const raw = String(text ?? '').replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/(?:\n[ \t]*)+$/, '');
   const all = raw.trim() === '' ? ['(No content)'] : raw.split('\n');
-  const shown = expanded ? all : all.slice(0, COLLAPSED_LINES);
+  const shown = expanded ? all : all.slice(0, compact ? COMPACT_LINES : COLLAPSED_LINES);
   const color = (l) => (isError ? fg(COLORS.error, l) : fg(COLORS.muted, l));
   const room = Math.max(1, width - pad - CONT_PREFIX.length);
   const p = ' '.repeat(pad);
@@ -70,13 +71,13 @@ function parseDiffLine(line) {
   return 'ctx';
 }
 
-function formatDiffResult(diff, { expanded = false, width = 80, pad = 0 } = {}) {
+function formatDiffResult(diff, { expanded = false, width = 80, pad = 0, compact = false } = {}) {
   const lines = String(diff ?? '').replace(/\n+$/, '').split('\n');
   const added = lines.filter((l) => parseDiffLine(l) === 'add').length;
   const removed = lines.filter((l) => parseDiffLine(l) === 'rem').length;
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const summary = `Updated with ${plural(added, 'addition')} and ${plural(removed, 'removal')}`;
-  const shown = expanded ? lines : lines.slice(0, COLLAPSED_DIFF_LINES);
+  const shown = expanded ? lines : lines.slice(0, compact ? COMPACT_LINES : COLLAPSED_DIFF_LINES);
   const body = shown.map((l) => {
     const kind = parseDiffLine(l);
     const room = Math.max(1, width - pad - CONT_PREFIX.length);
