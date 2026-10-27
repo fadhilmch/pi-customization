@@ -3,6 +3,8 @@ const fsDefault = require('node:fs');
 const osDefault = require('node:os');
 const path = require('node:path');
 const { fold, isAllowlisted } = require('./fold.js');
+const { foldByCommand, pickFolder } = require('./folders.js');
+const { DEFAULTS } = require('./config.js');
 const { ReadTracker, dedupeNote } = require('./dedupe.js');
 const { Stats } = require('./stats.js');
 
@@ -44,7 +46,13 @@ function createDiet({ loadConfig, fs = fsDefault, os = osDefault, emit = () => {
   }
 
   function foldBash(event, ctx) {
-    if (isAllowlisted(event.input?.command, state.cfg)) return undefined;
+    const command = event.input?.command;
+    // The default allowlist keeps `git diff|show` whole (prompts and reviewers read whole diffs); only plain
+    // `git log` is summarised despite it. A customised allowlist always wins over the folders.
+    const allowlisted = isAllowlisted(command, state.cfg);
+    const defaultAllowlist = JSON.stringify(state.cfg.allowlist) === JSON.stringify(DEFAULTS.allowlist);
+    if (allowlisted && !(defaultAllowlist && pickFolder(command, state.cfg)?.name === 'git-log')) return undefined;
+    const run = (opts) => foldByCommand(command, text, state.cfg, opts) || (allowlisted ? null : fold(text, state.cfg, opts));
     if (!onlyText(event.content)) return undefined;
     const shown = textOf(event.content);
     const piPath = event.details?.fullOutputPath;
@@ -58,17 +66,17 @@ function createDiet({ loadConfig, fs = fsDefault, os = osDefault, emit = () => {
       } catch { /* keep the truncated text */ }
     }
     let fullPath = piPath;
-    if (!fold(text, state.cfg, { fullPath: fullPath || '<path>', numbered })) return undefined;
+    if (!run({ fullPath: fullPath || '<path>', numbered })) return undefined;
     if (!fullPath) {
       try { fullPath = saveFull(text, ctx, event.toolCallId); } catch { return undefined; } // cannot save: never lose output
     }
-    const result = fold(text, state.cfg, { fullPath, numbered });
+    const result = run({ fullPath, numbered });
     if (!result) return undefined;
-    state.stats.record('fold', shown.length, result.text.length);
+    state.stats.record('fold', shown.length, result.text.length, result.folder);
     publish();
     return {
       content: [{ type: 'text', text: result.text }],
-      details: { ...(event.details || {}), outputDiet: { kind: 'fold', before: shown.length, after: result.text.length, path: fullPath } },
+      details: { ...(event.details || {}), outputDiet: { kind: 'fold', before: shown.length, after: result.text.length, path: fullPath, ...(result.folder ? { folder: result.folder } : {}) } },
     };
   }
 
