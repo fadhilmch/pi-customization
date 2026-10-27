@@ -1,0 +1,97 @@
+PASS src/s1.test.js
+  ✓ case 1.1 (1 ms)
+  ✓ case 1.2 (2 ms)
+  ✓ case 1.3 (3 ms)
+  ✓ case 1.4 (4 ms)
+  ✓ case 1.5 (5 ms)
+  ✓ case 1.6 (6 ms)
+PASS src/s2.test.js
+  ✓ case 2.1 (1 ms)
+  ✓ case 2.2 (2 ms)
+  ✓ case 2.3 (3 ms)
+  ✓ case 2.4 (4 ms)
+  ✓ case 2.5 (5 ms)
+  ✓ case 2.6 (6 ms)
+PASS src/s3.test.js
+  ✓ case 3.1 (1 ms)
+  ✓ case 3.2 (2 ms)
+  ✓ case 3.3 (3 ms)
+  ✓ case 3.4 (4 ms)
+  ✓ case 3.5 (5 ms)
+  ✓ case 3.6 (6 ms)
+FAIL src/s4.test.js
+  ✓ case 4.1 (1 ms)
+  ✕ case 4.2 (2 ms)
+  ✓ case 4.3 (3 ms)
+  ✓ case 4.4 (4 ms)
+  ✓ case 4.5 (5 ms)
+  ✓ case 4.6 (6 ms)
+PASS src/s5.test.js
+  ✓ case 5.1 (1 ms)
+  ✓ case 5.2 (2 ms)
+  ✓ case 5.3 (3 ms)
+  ✓ case 5.4 (4 ms)
+  ✓ case 5.5 (5 ms)
+  ✓ case 5.6 (6 ms)
+PASS src/s6.test.js
+  ✓ case 6.1 (1 ms)
+  ✓ case 6.2 (2 ms)
+  ✓ case 6.3 (3 ms)
+  ✓ case 6.4 (4 ms)
+  ✓ case 6.5 (5 ms)
+  ✓ case 6.6 (6 ms)
+PASS src/s7.test.js
+  ✓ case 7.1 (1 ms)
+  ✓ case 7.2 (2 ms)
+  ✓ case 7.3 (3 ms)
+  ✓ case 7.4 (4 ms)
+  ✓ case 7.5 (5 ms)
+  ✓ case 7.6 (6 ms)
+PASS src/s8.test.js
+  ✓ case 8.1 (1 ms)
+  ✓ case 8.2 (2 ms)
+  ✓ case 8.3 (3 ms)
+  ✓ case 8.4 (4 ms)
+  ✓ case 8.5 (5 ms)
+  ✓ case 8.6 (6 ms)
+PASS src/s9.test.js
+  ✓ case 9.1 (1 ms)
+  ✓ case 9.2 (2 ms)
+  ✓ case 9.3 (3 ms)
+  ✓ case 9.4 (4 ms)
+  ✓ case 9.5 (5 ms)
+  ✓ case 9.6 (6 ms)
+PASS src/s10.test.js
+  ✓ case 10.1 (1 ms)
+  ✓ case 10.2 (2 ms)
+  ✓ case 10.3 (3 ms)
+  ✓ case 10.4 (4 ms)
+  ✓ case 10.5 (5 ms)
+  ✓ case 10.6 (6 ms)
+PASS src/s11.test.js
+  ✓ case 11.1 (1 ms)
+  ✓ case 11.2 (2 ms)
+  ✓ case 11.3 (3 ms)
+  ✓ case 11.4 (4 ms)
+  ✓ case 11.5 (5 ms)
+  ✓ case 11.6 (6 ms)
+PASS src/s12.test.js
+  ✓ case 12.1 (1 ms)
+  ✓ case 12.2 (2 ms)
+  ✓ case 12.3 (3 ms)
+  ✓ case 12.4 (4 ms)
+  ✓ case 12.5 (5 ms)
+  ✓ case 12.6 (6 ms)
+
+  ● s4 › case 4.2
+
+    expect(received).toBe(expected)
+
+    Expected: 2
+    Received: 3
+
+      at Object.<anonymous> (src/s4.test.js:12:20)
+
+Test Suites: 1 failed, 11 passed, 12 total
+Tests:       1 failed, 71 passed, 72 total
+Time:        2.1 s
