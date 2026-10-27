@@ -91,6 +91,8 @@ test('normalizes provider response headers into session and weekly quota percent
     fiveHourPct: 31,
     sevenDayPct: 72,
     resetText: '1d 14h',
+    resetAtMs: Date.UTC(2026, 8, 24, 2, 0, 0),
+    fiveHourResetAtMs: null,
   });
 });
 
@@ -116,6 +118,8 @@ test('normalizes Codex WHAM usage windows into statusline quota percentages', ()
     fiveHourPct: 31,
     sevenDayPct: 72,
     resetText: '1d 14h',
+    resetAtMs: now + ((24 + 14) * 60 * 60 + 12 * 60) * 1000,
+    fiveHourResetAtMs: Math.floor((now + 2 * 60 * 60) / 1000) * 1000, // fixture passes reset_at in seconds
   });
 });
 
@@ -218,4 +222,34 @@ test('fitPrimaryItems degrades by priority and never exceeds the width', () => {
     assert.equal(items[0].key, 'model');
   }
   assert.ok(keys(100).includes('reset'));
+});
+
+test('reset countdowns are recomputed at render time and the 5h window gets its own', () => {
+  const now = Date.UTC(2026, 8, 22, 12, 0, 0);
+  const quota = { fiveHourPct: 31, sevenDayPct: 72, resetText: 'stale', resetAtMs: now + 26 * 3600 * 1000, fiveHourResetAtMs: now + 135 * 60 * 1000 };
+  const model = { provider: 'anthropic', id: 'claude-opus-4-5' };
+  const items = buildPrimaryItems({ model, thinkingLevel: 'high', contextPct: 5, quota, nowMs: now });
+  assert.equal(items.find((i) => i.key === 'reset').text, '↻ 1d 2h');
+  assert.equal(items.find((i) => i.key === 'fiveHourReset').text, '5h ↻ 2h 15m');
+  // No timestamp: fall back to the cached text, and no 5h countdown.
+  const old = buildPrimaryItems({ model, thinkingLevel: 'high', contextPct: 5, quota: { fiveHourPct: 1, resetText: '3h 00m' }, nowMs: now });
+  assert.equal(old.find((i) => i.key === 'reset').text, '↻ 3h 00m');
+  assert.equal(old.find((i) => i.key === 'fiveHourReset'), undefined);
+});
+
+test('cache hit segment appears when known and obeys its toggle', () => {
+  const args = { model: { provider: 'github-copilot', id: 'gpt-5.4' }, thinkingLevel: 'high', contextPct: 5, cacheHitPct: 86.6 };
+  assert.equal(buildPrimaryItems(args).find((i) => i.key === 'cacheHit').text, '⚡ Cache 87%');
+  assert.equal(buildPrimaryItems({ ...args, show: { cacheHit: false } }).find((i) => i.key === 'cacheHit'), undefined);
+  assert.equal(buildPrimaryItems({ ...args, cacheHitPct: null }).find((i) => i.key === 'cacheHit'), undefined);
+});
+
+test('a budget keeps the cost segment next to quota bars and carries its level', () => {
+  const model = { provider: 'anthropic', id: 'claude-opus-4-5' };
+  const quota = { fiveHourPct: 10, sevenDayPct: 20, resetText: '1d 1h' };
+  const base = { model, thinkingLevel: 'high', contextPct: 5, sessionCostText: '$0.90', quota };
+  assert.equal(buildPrimaryItems(base).some((i) => i.key === 'cost'), false);
+  const cost = buildPrimaryItems({ ...base, sessionCostLevel: 'warn' }).find((i) => i.key === 'cost');
+  assert.equal(cost.level, 'warn');
+  assert.equal(buildPrimaryItems({ ...base, sessionCostLevel: 'warn', show: { cost: false } }).some((i) => i.key === 'cost'), false);
 });
