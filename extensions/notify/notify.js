@@ -2,8 +2,46 @@
 // Pure helpers for the notify extension. No Pi imports.
 const path = require("node:path");
 
-const DEFAULTS = Object.freeze({ enabled: true, minSeconds: 10, sound: "Tink", method: "auto" });
-const METHODS = ["auto", "osc", "osascript", "none"];
+const DEFAULTS = Object.freeze({
+  enabled: true,
+  minSeconds: 10,
+  sound: "Tink",
+  method: "auto",
+  suppressWhenFocused: true,
+  quietHours: null,
+  command: null,
+});
+const METHODS = ["auto", "osc", "osascript", "notify-send", "none"];
+const COMMAND_TIMEOUT_MS = 10000;
+
+/** "HH:MM" -> minutes since midnight, or null. */
+function parseClock(s) {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(typeof s === "string" ? s.trim() : "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/** Keep quietHours only when both ends parse and differ. */
+function normalizeQuietHours(q) {
+  if (!q || typeof q !== "object") return null;
+  const a = parseClock(q.start);
+  const b = parseClock(q.end);
+  return a === null || b === null || a === b ? null : { start: q.start.trim(), end: q.end.trim() };
+}
+
+/** argv array of non-empty strings, or null. A shell string is rejected on purpose. */
+function normalizeCommand(c) {
+  return Array.isArray(c) && c.length > 0 && c.every((x) => typeof x === "string" && x !== "") ? [...c] : null;
+}
+
+/** True when `now` is inside the window; the window may wrap midnight (22:00 -> 07:00). */
+function inQuietHours(quietHours, now) {
+  const q = normalizeQuietHours(quietHours);
+  if (!q) return false;
+  const start = parseClock(q.start);
+  const end = parseClock(q.end);
+  const t = now.getHours() * 60 + now.getMinutes();
+  return start < end ? t >= start && t < end : t >= start || t < end;
+}
 
 /** Merge a raw parsed notify.json over the defaults, ignoring invalid values. */
 function normalizeConfig(raw) {
@@ -13,6 +51,9 @@ function normalizeConfig(raw) {
   if (typeof raw.minSeconds === "number" && Number.isFinite(raw.minSeconds) && raw.minSeconds >= 0) out.minSeconds = raw.minSeconds;
   if (typeof raw.sound === "string") out.sound = raw.sound.trim(); // "" disables the sound
   if (typeof raw.method === "string" && METHODS.includes(raw.method)) out.method = raw.method;
+  if (typeof raw.suppressWhenFocused === "boolean") out.suppressWhenFocused = raw.suppressWhenFocused;
+  out.quietHours = normalizeQuietHours(raw.quietHours);
+  out.command = normalizeCommand(raw.command);
   return out;
 }
 
@@ -59,12 +100,14 @@ function oscSequence(title, body, env = {}) {
   return `\x1b]777;notify;${t};${b}\x07`;
 }
 
-/** Which delivery to use: "osascript" | "osc" | "none". */
+/** Which delivery to use: "osascript" | "notify-send" | "osc" | "none". */
 function resolveMethod(config, platform) {
   if (!config.enabled || config.method === "none") return "none";
   if (config.method === "osascript") return platform === "darwin" ? "osascript" : "none";
   if (config.method === "osc") return "osc";
-  return platform === "darwin" ? "osascript" : "osc";
+  if (config.method === "notify-send") return platform === "linux" ? "notify-send" : "none";
+  if (platform === "darwin") return "osascript";
+  return platform === "linux" ? "notify-send" : "osc";
 }
 
 function shouldNotify({ config, elapsedMs, aborted }) {
@@ -87,31 +130,92 @@ function buildSettled({ cwd, elapsedMs }) {
   return { title: projectTitle(cwd), body: `Ready for input (took ${formatDuration(elapsedMs)})` };
 }
 
+function buildError({ cwd, message, elapsedMs }) {
+  const detail = cleanText(message, 120);
+  const took = elapsedMs ? ` (after ${formatDuration(elapsedMs)})` : "";
+  return { title: `${projectTitle(cwd)} - error`, body: `Run ended with an error${took}${detail ? `: ${detail}` : ""}` };
+}
+
 function buildPrompt({ cwd, title }) {
   return { title: projectTitle(cwd), body: title ? `Waiting for you: ${title}` : "Waiting for your confirmation" };
 }
 
+/** Linux needs a session bus to show anything; over plain ssh the OSC sequence is the better bet. */
+function canNotifySend(env) {
+  return Boolean(env.DISPLAY || env.WAYLAND_DISPLAY || env.DBUS_SESSION_BUS_ADDRESS);
+}
+
+/** Args for execFile("notify-send", args). "--" keeps a title starting with "-" from being read as an option. */
+function notifySendArgs(title, body) {
+  return ["--app-name=Pi", "--", cleanText(title, 80), cleanText(body, 200)];
+}
+
 /**
- * Deliver a notification. deps: { platform, env, execFile, write }.
- * Never throws; a missing osascript falls back to OSC.
+ * Deliver a desktop/terminal notification. deps: { platform, env, execFile, write }.
+ * Never throws; a missing osascript, or a failing notify-send, falls back to OSC.
  */
 function deliver(config, title, body, deps) {
-  const method = resolveMethod(config, deps.platform);
+  let method = resolveMethod(config, deps.platform);
   const osc = () => {
     try {
       deps.write(oscSequence(title, body, deps.env));
     } catch {}
   };
+  if (method === "notify-send" && config.method === "auto" && !canNotifySend(deps.env || {})) method = "osc";
   if (method === "osc") return osc();
-  if (method !== "osascript") return;
+  if (method !== "osascript" && method !== "notify-send") return;
+  const [bin, args, fallsBack] =
+    method === "osascript"
+      ? ["osascript", osascriptArgs(title, body, config.sound), (err) => err.code === "ENOENT"]
+      : ["notify-send", notifySendArgs(title, body), () => true];
   try {
-    const child = deps.execFile("osascript", osascriptArgs(title, body, config.sound), { timeout: 5000 }, (err) => {
-      if (err && err.code === "ENOENT") osc();
+    const child = deps.execFile(bin, args, { timeout: 5000 }, (err) => {
+      if (err && fallsBack(err)) osc();
     });
     if (child && typeof child.on === "function") child.on("error", () => {});
   } catch {
     osc();
   }
+}
+
+/**
+ * Run the user's command hook: argv only (no shell), detached, stdio ignored, killed after
+ * COMMAND_TIMEOUT_MS. Never throws. deps: { spawn, env }.
+ */
+function runCommand(command, ev, deps) {
+  if (!command) return;
+  try {
+    const child = deps.spawn(command[0], command.slice(1), {
+      detached: true,
+      stdio: "ignore",
+      timeout: COMMAND_TIMEOUT_MS,
+      env: {
+        ...deps.env,
+        PI_NOTIFY_TITLE: cleanText(ev.title, 200),
+        PI_NOTIFY_MESSAGE: cleanText(ev.body, 400),
+        PI_NOTIFY_EVENT: ev.event,
+        PI_NOTIFY_QUIET: ev.quiet ? "1" : "0",
+      },
+    });
+    if (child && typeof child.on === "function") child.on("error", () => {});
+    if (child && typeof child.unref === "function") child.unref();
+  } catch {}
+}
+
+/**
+ * Full pipeline for one event {title, body, event: "settled"|"error"|"prompt"}.
+ * Focused terminal: nothing at all. Quiet hours: no sound, popup or OSC, but the command still
+ * runs (PI_NOTIFY_QUIET=1) because it is the user's own remote channel.
+ * deps: { platform, env, execFile, spawn, write, now?, isFocused? }. Never throws.
+ */
+async function notifyAll(config, ev, deps) {
+  try {
+    if (!config.enabled || config.method === "none") return;
+    if (config.suppressWhenFocused && deps.isFocused && (await deps.isFocused(deps))) return;
+    const quiet = inQuietHours(config.quietHours, deps.now ? deps.now() : new Date());
+    runCommand(config.command, { ...ev, quiet }, deps);
+    if (!quiet) deliver(config, ev.title, ev.body, deps);
+  } catch {}
 }
 
 module.exports = {
@@ -124,6 +228,14 @@ module.exports = {
   osascriptArgs,
   oscSequence,
   resolveMethod,
+  parseClock,
+  normalizeQuietHours,
+  normalizeCommand,
+  inQuietHours,
+  notifySendArgs,
+  runCommand,
+  notifyAll,
+  buildError,
   shouldNotify,
   formatDuration,
   buildSettled,
