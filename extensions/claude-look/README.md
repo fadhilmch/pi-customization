@@ -65,5 +65,5 @@ node extensions/claude-look/scripts/preview.mjs [after|before] [width]
 
 - Bullet colour: dim while the call has not started or is streaming, green on success, red on `isError`. Pi re-renders the call line when the result arrives, but this was not verified live.
 - Edit diff parsing assumes Pi's display diff lines start with `+`, `-` or a space.
-- Not done: rounded input-box editor (see [`pi-vimmode`](https://www.npmjs.com/package/pi-vimmode) for a modal editor) and a todo widget (see `todo`).
+- Not done: rounded input-box editor (see `vim-editor` for the modal editor) and a todo widget (see `todo`).
 - Never run in a live Pi session by the author; only unit tests, a headless import check and a command-registration check over RPC.
