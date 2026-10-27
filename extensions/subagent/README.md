@@ -43,7 +43,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-subagent`. See the [roo
 | "use a scout to …", "run 3 scouts in parallel …" | You name the agent or mode and the model follows. |
 | `/scout <question>` | One `scout` call. The cheapest way to ask a codebase question without filling your context. |
 | `/review [focus]` | One `reviewer` call on the uncommitted diff. Its findings are relayed, nothing is changed. |
-| `/orchestrate <goal>` | The main session plans and integrates, scouts do recon, workers take independent pieces, and one reviewer checks the end result. See [/orchestrate](#orchestrate). |
+| `/orchestrate <goal>` | The main session plans and integrates, scouts do recon, workers take independent pieces, and one reviewer checks the end result. |
 | `/agents` | Opens a panel listing every agent: source (bundled, user, project), the model it will actually run after config overrides, thinking level, tools, extensions it loads, and its description. It also says when project agents were skipped because the project is not trusted, and which agent files failed to parse. Plain text outside the TUI. |
 
 ![/agents panel](https://raw.githubusercontent.com/fadhilmch/pi-customization/main/docs/media/subagent-agents.png)
