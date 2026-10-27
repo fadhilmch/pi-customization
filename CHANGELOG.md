@@ -52,7 +52,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `output-diet`: with the default allowlist, plain `git log` is now summarised. `git diff` and `git show` stay whole, as do `git log --format=...` and `--stat`. The `git-diff` folder runs only with a custom `allowlist` that omits them.
 - `quality-on-write`: end-of-run notifications say "checks" instead of "typecheck".
 - `ask-user`: the tool definition grows by about 70 tokens (about 440 total) for the `preview` field.
-- `subagent`: `/orchestrate` is plan-first. The main session clarifies, sends scouts, writes a plan where each step names its files, a done-when check and an owner, and waits for approval. It then writes one shared brief for workers, audits each report against its step, keeps shared files (changelog, root README) for itself, and verifies the combined result before the review. About 900 tokens, up from about 350.
+- `subagent`: `/orchestrate` is plan-first. The main session clarifies, sends scouts, writes a plan where each step names its files, a done-when check and an owner (workers by default) plus a dispatch order, and waits for approval. It then writes one shared brief for workers, runs the groups in order, audits each report against its step, keeps shared files (changelog, root README) for itself, and verifies the combined result before the review. About 1,100 tokens, up from about 350.
 
 ### Removed
 
