@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getMarkdownTheme } from "@earendil-works/pi-coding-agent";
 import { Markdown } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { join } from "node:path";
 
 const { isSafeCommand } = require("./bash.js");
 const {
@@ -15,6 +16,8 @@ const {
   planInstructions,
   approvalMessage,
   keepPlanningMessage,
+  formatPlanDiff,
+  savePlan,
   extractSteps,
   widgetLine,
   statusText,
@@ -36,6 +39,7 @@ function lines(produce: (width: number) => string[]) {
 export default function (pi: ExtensionAPI) {
   let planMode = false;
   let savedTools: string[] | undefined;
+  let lastSubmitted: string | undefined; // previous exit_plan_mode submission, for the diff on a revised plan
   let askGate = false; // "Approve & keep asking": confirm each mutating call until the run ends
 
   pi.registerFlag("plan", {
@@ -68,6 +72,7 @@ export default function (pi: ExtensionAPI) {
     if (on === planMode) return;
     planMode = on;
     askGate = false;
+    lastSubmitted = undefined;
     applyTools();
     renderIndicators(ctx);
     persist();
@@ -125,16 +130,38 @@ export default function (pi: ExtensionAPI) {
         return text("No interactive UI to ask for approval. Stay in plan mode and summarise the plan in your reply.", { approved: false }, true);
       }
 
-      const choice = await ctx.ui.select("Plan ready. How do you want to proceed?", [CHOICES.auto, CHOICES.ask, CHOICES.keep]);
+      let plan: string = params.plan;
+      let edited = false;
+      const diff = formatPlanDiff(lastSubmitted, plan);
+      lastSubmitted = plan;
+      const title = `Plan ready. How do you want to proceed?${diff ? `\n\n${diff}` : ""}`;
+      let choice = await ctx.ui.select(title, [CHOICES.auto, CHOICES.ask, CHOICES.edit, CHOICES.keep]);
+      while (choice === CHOICES.edit) {
+        const revised = await ctx.ui.editor("Edit plan", plan);
+        if (typeof revised === "string" && revised.trim()) {
+          edited = edited || revised !== plan;
+          plan = revised;
+          lastSubmitted = plan;
+        }
+        choice = await ctx.ui.select("Plan ready. How do you want to proceed?", [CHOICES.auto, CHOICES.ask, CHOICES.edit, CHOICES.keep]);
+      }
 
       if (choice === CHOICES.auto || choice === CHOICES.ask) {
         const mode = choice === CHOICES.ask ? "ask" : "auto";
         setPlanMode(false, ctx);
         askGate = mode === "ask";
-        const steps = extractSteps(params.plan);
+        lastSubmitted = undefined;
+        const steps = extractSteps(plan);
+        let file: string | undefined;
+        try {
+          file = savePlan(join(ctx.cwd ?? process.cwd(), ".pi", "plans"), plan);
+        } catch (e: any) {
+          ctx.ui.notify(`Could not save the plan to .pi/plans: ${e?.message ?? e}`, "warning");
+        }
         if (steps.length) pi.events.emit(SEED_EVENT, { items: steps });
-        pi.events.emit("plan-mode:approved", { mode, plan: params.plan, steps });
-        return text(approvalMessage(mode), { approved: true, mode, steps });
+        pi.events.emit("plan-mode:approved", { mode, plan, steps, file });
+        const note = edited ? `\n\nApproved plan (edited by the user):\n${plan}` : "";
+        return text(approvalMessage(mode, edited) + note, { approved: true, mode, steps, edited, file });
       }
 
       // Keep planning (also on cancel/escape): optionally collect feedback.
