@@ -54,7 +54,21 @@ function appendBullet(existing, note) {
   return `${base}${sep}${bullet}`;
 }
 
-// fs = { readFileSync, writeFileSync, mkdirSync } (node:fs shape). Returns { created }.
+const bulletLine = (note) => `- ${note.replace(/\s+/g, ' ').trim()}`;
+
+// True if the file already has a bullet (-, * or +) with exactly this text.
+function hasBullet(existing, note) {
+  const want = bulletLine(note).slice(2);
+  return String(existing ?? '')
+    .split('\n')
+    .some((l) => {
+      const m = /^\s*[-*+]\s+(.*?)\s*$/.exec(l);
+      return !!m && m[1].replace(/\s+/g, " ") === want;
+    });
+}
+
+// fs = { readFileSync, writeFileSync, mkdirSync } (node:fs shape).
+// Returns { created, duplicate, line }; nothing is written for an exact duplicate bullet.
 function saveNote(file, note, fs) {
   let existing = null;
   try {
@@ -62,11 +76,30 @@ function saveNote(file, note, fs) {
   } catch (e) {
     if (e?.code !== 'ENOENT') throw e;
   }
+  if (existing != null && hasBullet(existing, note)) return { created: false, duplicate: true, line: bulletLine(note) };
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, appendBullet(existing, note));
-  return { created: existing == null };
+  return { created: existing == null, duplicate: false, line: bulletLine(note) };
+}
+
+// Remove the last line equal to `line` (a bullet saveNote appended). Returns { removed } and writes
+// nothing if the line is gone or was edited since.
+function undoNote(file, line, fs) {
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return { removed: false };
+  }
+  const lines = text.split('\n');
+  const i = lines.lastIndexOf(line);
+  if (i < 0) return { removed: false };
+  lines.splice(i, 1);
+  const out = lines.join('\n').replace(/\s+$/, '');
+  fs.writeFileSync(file, out ? out + '\n' : '');
+  return { removed: true };
 }
 
 const shortPath = (p, home = os.homedir()) => (p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
 
-module.exports = { CANDIDATES, memoryFile, parseNote, agentDir, projectFile, userFile, appendBullet, saveNote, shortPath };
+module.exports = { CANDIDATES, memoryFile, parseNote, agentDir, projectFile, userFile, appendBullet, bulletLine, hasBullet, saveNote, undoNote, shortPath };

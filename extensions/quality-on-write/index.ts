@@ -6,6 +6,7 @@ const { loadConfig } = require("./config.js");
 const { run, resolveToolPath, realEnv } = require("./run.js");
 const { formatFile } = require("./format.js");
 const { planCheck, Batch, FeedbackGuard } = require("./typecheck.js");
+const { planLint } = require("./lint.js");
 const { runChecks } = require("./check.js");
 
 const WRITE_TOOLS = new Set(["write", "edit"]);
@@ -29,7 +30,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // After a successful write/edit: format the file in place (awaited, so the next tool call
-  // sees the final bytes), tell the model if it changed, and queue the file for typecheck.
+  // sees the final bytes), tell the model if it changed, and queue the file for typecheck and lint.
   pi.on("tool_result", async (event, ctx) => {
     if (!WRITE_TOOLS.has(event.toolName) || event.isError) return;
     const raw = (event.input as { path?: unknown }).path;
@@ -40,6 +41,7 @@ export default function (pi: ExtensionAPI) {
 
     const plan = planCheck(file, cfg, env);
     if (plan) batch.add(plan, file);
+    for (const p of planLint(file, cfg, env)) batch.add(p, file);
 
     const result = await formatFile(file, cfg, {
       env,
@@ -52,13 +54,13 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  // End of the run (after retries/compaction): typecheck every touched project once, and if the
+  // End of the run (after retries/compaction): typecheck and lint every touched project once, and if the
   // agent's own files have errors, inject one follow-up message and continue for one more request.
   pi.on("agent_before_settle", async (_event, ctx) => {
     const groups = batch.take();
     if (groups.length === 0) return;
     const names = [...new Set(groups.map((g: any) => g.plan.name))].join(", ");
-    if (ctx.hasUI) ctx.ui.setStatus("quality-on-write", `typechecking (${names})...`);
+    if (ctx.hasUI) ctx.ui.setStatus("quality-on-write", `checking (${names})...`);
     let result;
     try {
       result = await runChecks(groups, { run, signal: ctx.signal });
@@ -68,15 +70,15 @@ export default function (pi: ExtensionAPI) {
     for (const w of result.warnings) if (ctx.hasUI) ctx.ui.notify(`quality-on-write: ${w}`, "warning");
     if (result.problems.length === 0) {
       guard.passed();
-      if (ctx.hasUI && result.warnings.length === 0) ctx.ui.notify(`typecheck ok (${names})`, "info");
+      if (ctx.hasUI && result.warnings.length === 0) ctx.ui.notify(`checks ok (${names})`, "info");
       return;
     }
     const count = result.problems.reduce((n: number, p: any) => n + p.errors.length, 0);
     if (!guard.allow(result.signature)) {
-      if (ctx.hasUI) ctx.ui.notify(`typecheck: ${count} error(s) remain; not re-sending to the model`, "warning");
+      if (ctx.hasUI) ctx.ui.notify(`checks: ${count} error(s) remain; not re-sending to the model`, "warning");
       return;
     }
-    if (ctx.hasUI) ctx.ui.notify(`typecheck: ${count} error(s), sending to the model`, "warning");
+    if (ctx.hasUI) ctx.ui.notify(`checks: ${count} error(s), sending to the model`, "warning");
     return {
       entries: [
         {
