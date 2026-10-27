@@ -2,6 +2,7 @@
 // Glue between the pure classifier and Pi's UI: mode state, session allow-list,
 // confirmation prompt. Kept free of Pi imports so it can be unit-tested.
 const os = require('node:os');
+const path = require('node:path');
 const { classifyToolCall } = require('./classify.js');
 const { spawnSync } = require('node:child_process');
 const { loadConfig, MODES } = require('./config.js');
@@ -107,7 +108,7 @@ function preview(toolName, input) {
 function classifyWith(state, cwd, toolName, input) {
   return classifyToolCall(toolName, input, {
     cwd, mode: state.mode, config: state.config, home: state.home, env: state.env, tmpRoots: state.tmpRoots,
-    currentBranch: () => currentBranch(state, cwd),
+    currentBranch: (dir) => currentBranch(state, dir ? path.resolve(cwd, dir) : cwd),
   });
 }
 

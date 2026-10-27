@@ -330,3 +330,13 @@ test('branch guard config: user list replaces default, project only adds', () =>
   const cfg = mergeConfigs({ protectedBranches: [] }, {});
   assert.equal(bash('git commit -m x', { config: cfg, currentBranch: 'main' }).action, 'allow', 'user can disable the guard');
 });
+
+test('branch guard: git -C passes its target directory to the branch lookup', () => {
+  const cfg = mergeConfigs({}, {});
+  const seen = [];
+  const lookup = (dir) => { seen.push(dir); return dir === 'repo/sub' ? 'main' : 'feature/x'; };
+  assert.equal(bash('git -C repo -C sub commit -m x', { config: cfg, currentBranch: lookup }).action, 'ask');
+  assert.equal(bash('git -C other commit -m x', { config: cfg, currentBranch: lookup }).findings.some((f) => f.id === 'branch-guard'), false);
+  bash('git commit -m x', { config: cfg, currentBranch: lookup });
+  assert.deepEqual(seen, ['repo/sub', 'other', null]);
+});
