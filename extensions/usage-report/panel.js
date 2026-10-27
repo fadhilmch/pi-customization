@@ -4,6 +4,7 @@
 const { COLORS, fg, bold, dim, visibleWidth, truncate } = require('./ansi.js');
 const { fmt } = require('./context.js');
 const { money } = require('./cost.js');
+const { formatHistory } = require('./history.js');
 
 const PALETTE = {
   system: COLORS.accent,
@@ -198,4 +199,11 @@ function costPanel(agg, width) {
   return frame('Cost', out, width);
 }
 
-module.exports = { PALETTE, MAX_WIDTH, bar, stackedBar, wrap, frame, contextPanel, costPanel };
+// r: scanHistory() output. The overlay does not scroll, so the panel keeps only the newest rows (--json has all).
+function historyPanel(r, width, { maxRows = 10 } = {}) {
+  const title = r.period === 'monthly' ? 'Cost per month' : 'Cost per day';
+  const lines = formatHistory(r, { maxRows }).split('\n');
+  return frame(title, lines.slice(r.rows.length ? 2 : 0).map((l) => (/^\d{4}-\d{2}/.test(l) ? bold(l) : l)), width);
+}
+
+module.exports = { PALETTE, MAX_WIDTH, bar, stackedBar, wrap, frame, contextPanel, costPanel, historyPanel };
