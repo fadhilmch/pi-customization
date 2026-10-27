@@ -462,6 +462,21 @@ test('runChild: timeout message uses seconds under a minute', async () => {
   assert.equal(r.errorMessage, 'timed out after 1s');
 });
 
+// A killed process whose parent never reaps it stays a zombie (state Z): it is dead, but
+// process.kill(pid, 0) still succeeds. Containers whose PID 1 does not reap orphans hit this.
+function isRunning(pid) {
+  try { process.kill(pid, 0); } catch { return false; }
+  try {
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3) !== 'Z';
+  } catch {
+    try {
+      const { execFileSync } = require('node:child_process');
+      return !execFileSync('ps', ['-o', 'stat=', '-p', String(pid)], { encoding: 'utf8' }).trim().startsWith('Z');
+    } catch { return false; }
+  }
+}
+
 test('runChild: abort kills the whole process group, not just the child', { skip: process.platform === 'win32' }, async () => {
   const dir = tmp('sa-pg-');
   const pidFile = path.join(dir, 'grandchild.pid');
@@ -478,8 +493,7 @@ test('runChild: abort kills the whole process group, not just the child', { skip
   ac.abort();
   assert.equal((await p).status, 'aborted');
   await new Promise((r) => setTimeout(r, 300));
-  let alive = true;
-  try { process.kill(pid, 0); } catch { alive = false; }
+  const alive = isRunning(pid);
   if (alive) process.kill(pid, 'SIGKILL');
   assert.equal(alive, false, 'grandchild is gone');
 });
