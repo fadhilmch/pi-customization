@@ -20,6 +20,22 @@ function parseShell(command) {
   return out;
 }
 
+// $'...' body starting at `start`. Only whitespace and quote escapes ($'\t', $'\n')
+// are decoded; \x, \u, octal and \c could spell a hidden command, so they return null.
+const ANSI_C_ESCAPES = { n: '\n', t: '\t', r: '\r', '\\': '\\', "'": "'", '"': '"' };
+function ansiC(s, start) {
+  let text = '';
+  for (let i = start; i < s.length; i++) {
+    if (s[i] === "'") return { text, end: i + 1 };
+    if (s[i] !== '\\') { text += s[i]; continue; }
+    const e = ANSI_C_ESCAPES[s[i + 1]];
+    if (e === undefined) return null;
+    text += e;
+    i++;
+  }
+  return null;
+}
+
 // Returns the index just after the closer (or end of input); -1 if closer missing.
 function scan(s, start, closer, out, depth) {
   let i = start;
@@ -102,7 +118,11 @@ function scan(s, start, closer, out, depth) {
     // Unquoted context
     if (c === "'") { inS = true; if (tok === null) tok = ''; radd(c); i++; continue; }
     if (c === '"') { inD = true; if (tok === null) tok = ''; radd(c); i++; continue; }
-    if (c === '$' && s[i + 1] === "'") { out.uncertain.push("ANSI-C quoting $'...'"); radd(c); tadd(c); i++; continue; }
+    if (c === '$' && s[i + 1] === "'") {
+      const r = ansiC(s, i + 2);
+      if (!r) { out.uncertain.push("ANSI-C quoting $'...'"); radd(c); tadd(c); i++; continue; }
+      radd(s.slice(i, r.end)); tadd(r.text); i = r.end; continue;
+    }
     if (c === '$' && s[i + 1] === '(') {
       const r = scan(s, i + 2, ')', out, depth + 1);
       if (r < 0) return s.length;

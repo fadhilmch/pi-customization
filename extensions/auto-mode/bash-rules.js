@@ -15,7 +15,10 @@ function mk(id, reason, key, severity) {
 
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ash', 'csh', 'tcsh']);
 const NET_SRC = new Set(['curl', 'wget', 'nc', 'ncat', 'fetch', 'http', 'https', 'xh']);
-const HEREDOC_SAFE = new Set(['cat', 'tee', 'git', 'gh', 'echo', 'printf', 'jq', 'grep', 'egrep', 'sed', 'awk', 'wc', 'sort', 'uniq', 'head', 'tail', 'base64', 'less', 'more', 'diff', 'patch', 'xargs', 'read', 'mail', 'sendmail']);
+const INTERPRETER = /^(python[\d.]*|node|ruby|perl|php|deno|bun)$/;
+// `curl x | python3 -c '...'` or `| python3 parse.py`: stdin is data, the code comes from the argument.
+const hasOwnCode = (args) => args.some((a) => /^-[cemrp]$/.test(a) || (a !== '-' && !a.startsWith('-')));
+const HEREDOC_SAFE =new Set(['cat', 'tee', 'git', 'gh', 'echo', 'printf', 'jq', 'grep', 'egrep', 'sed', 'awk', 'wc', 'sort', 'uniq', 'head', 'tail', 'base64', 'less', 'more', 'diff', 'patch', 'xargs', 'read', 'mail', 'sendmail']);
 const DB_CLIS = new Set(['psql', 'mysql', 'mariadb', 'sqlite3', 'sqlite', 'mongosh', 'mongo', 'redis-cli', 'clickhouse-client', 'duckdb', 'cockroach', 'usql', 'sqlcmd']);
 const NO_ARG_SCAN = new Set(['echo', 'printf', 'which', 'type', 'ls', 'test', '[', '[[', 'stat', 'file', 'cd', 'man', 'help', 'export', 'unset', 'set', 'alias', 'true', 'false']);
 const WRITE_ALL = new Set(['mv', 'tee', 'touch', 'mkdir', 'rmdir', 'truncate', 'rm', 'shred', 'unlink']);
@@ -282,6 +285,7 @@ function cloudRules(cmd, args, out) {
     return;
   }
   if (cmd === 'gcloud' || cmd === 'az') {
+    if (args.includes('--help') || args.includes('-h')) return;
     if (pos.some((w) => CLOUD_MUT_WORDS.test(w))) {
       const w = pos.find((x) => CLOUD_MUT_WORDS.test(x));
       out.findings.push(mk('cloud-mutate', `${cmd} ${pos.slice(0, 3).join(' ')} (mutating: ${w})`, `${cmd} ${pos.slice(0, 3).join(' ')}`));
@@ -500,7 +504,8 @@ function classifySegment(seg, ctx, depth, out) {
     out.findings.push(mk('uncertain', 'command name comes from a variable/substitution', ''));
   }
 
-  if (seg.heredocs.length && !HEREDOC_SAFE.has(cmd)) {
+  // A heredoc into python/node is as unchecked as `python -c`, which is allowed (see Limits).
+  if (seg.heredocs.length && !HEREDOC_SAFE.has(cmd) && !INTERPRETER.test(cmd)) {
     out.findings.push(mk('uncertain', `heredoc fed to ${cmd} (body not analysed)`, `heredoc:${cmd}`));
   }
 
@@ -513,7 +518,7 @@ function classifySegment(seg, ctx, depth, out) {
     const net = NET_SRC.has(prevCmd);
     if (SHELLS.has(cmd) || cmd === 'source' || cmd === '.' || cmd === 'eval') {
       out.findings.push(mk('pipe-to-shell', net ? `piping network download into ${cmd}` : prevDecode ? `piping decoded data into ${cmd}` : `piping data into ${cmd}`, `pipe-to-shell:${prevCmd}`, net || prevDecode ? 'high' : 'normal'));
-    } else if (net && /^(python[\d.]*|node|ruby|perl|php|deno|bun)$/.test(cmd)) {
+    } else if (net && INTERPRETER.test(cmd) && !hasOwnCode(args)) {
       out.findings.push(mk('pipe-to-shell', `piping network download into ${cmd}`, `pipe-to-shell:${prevCmd}`, 'high'));
     }
   }
