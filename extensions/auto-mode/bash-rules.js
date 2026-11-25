@@ -84,13 +84,24 @@ function sqlRisk(text) {
 }
 
 // ---- wrapper unwrapping ------------------------------------------------------
+const SHELL_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '!', '{']);
+// `uv run python - <<EOF`, `poetry run pytest`: classify the command they run.
+const RUNNERS = new Set(['uv', 'poetry', 'pipenv', 'pdm', 'hatch']);
+const RUNNER_VALUE_OPTS = new Set(['--with', '--python', '-p', '--project', '--directory', '--env-file', '--package', '--group', '--extra', '--index', '--env', '-e']);
 function unwrap(tokens, out) {
   const t = tokens.slice();
   let guard = 0;
   while (t.length && guard++ < 10) {
     while (t.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0])) t.shift();
     if (!t.length) break;
+    // `for x in a; do rm -rf $x; done` splits into a segment `do rm -rf $x`: the command follows the keyword.
+    if (SHELL_KEYWORDS.has(t[0])) { t.shift(); continue; }
     const c = cmdName(t[0]);
+    if (RUNNERS.has(c) && t[1] === 'run') {
+      t.splice(0, 2);
+      while (t.length && t[0].startsWith('-')) { if (RUNNER_VALUE_OPTS.has(t.shift())) t.shift(); }
+      continue;
+    }
     if (c === 'sudo' || c === 'doas' || c === 'pkexec') {
       out.findings.push(mk('sudo', `privileged command (${c})`, ''));
       t.shift();

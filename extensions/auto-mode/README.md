@@ -72,7 +72,8 @@ are blocked.
 Bash commands are split on `&&`, `||`, `;`, `|`, `&`, newlines, subshells, `$(...)`,
 backticks and `<(...)`; every part is classified and the call asks if any part
 is risky. Wrappers (`sudo`, `env`, `time`, `nohup`, `timeout`, `xargs`,
-`bash -c "..."`, `find -exec`) are unwrapped and the inner command classified.
+`bash -c "..."`, `find -exec`, `uv`/`poetry`/`pipenv`/`pdm`/`hatch run`) are unwrapped and the inner command classified.
+Commands inside `for`/`while`/`until` loops, `if`/`then`/`else`, `{ ...; }` groups and after `!` are classified like any other.
 
 | Category | Asks for |
 | --- | --- |

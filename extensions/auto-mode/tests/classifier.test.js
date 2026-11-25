@@ -51,6 +51,7 @@ table('bash: ordinary safe commands are allowed silently', 'allow', [
   "echo $'a\\nb'", "while IFS=$'\\t' read -r a b; do echo \"$a\"; done < list.tsv", 'python3 - <<EOF\nimport os\nEOF', '.venv/bin/python - <<\'PY\'\nprint(1)\nPY',
   'curl -s https://pypi.org/pypi/x/json | python3 -c "import sys,json; print(json.load(sys.stdin))"', 'curl -s https://x/a.json | node parse.js',
   'az cognitiveservices account update --help', 'gcloud compute instances delete -h',
+  'for f in a.yaml b.yaml; do python3 - "$f" <<\'EOF\'\nprint(1)\nEOF\ndone', 'uv run python - <<\'EOF\'\nprint(1)\nEOF', 'uv run --with rich pytest -q', 'if [ -f x ]; then cat x; else echo none; fi',
 ]);
 
 table('bash: recursive / forced delete asks', 'ask', [
@@ -64,6 +65,8 @@ table('bash: git history/remote mutations ask', 'ask', [
   'git -C sub push -f', 'git push origin :old-branch', 'git reset --hard', 'git reset --hard HEAD~3', 'git clean -fd', 'git clean -fdx', 'git checkout .',
   'git checkout -- src/a.js', 'git checkout -f main', 'git restore src/a.js', 'git restore --worktree --staged .', 'git branch -D old', 'git rebase main', 'git rebase -i HEAD~3',
   'git stash drop', 'git stash clear', 'git filter-branch --all', 'git reflog expire --all',
+  'for f in a b; do rm -rf $f; done', 'if true; then git push --force origin main; fi', 'while true; do sudo ls; done', '{ git reset --hard; }', '! git clean -fd',
+  'uv run rm -rf build', 'poetry run git push origin main',
 ]);
 
 table('bash: privilege, permissions, network-to-shell, eval ask', 'ask', [
@@ -101,7 +104,7 @@ table('bash: parse uncertainty leans to ask', 'ask', [
 
 table('bash: catastrophic commands are denied', 'deny', [
   'rm -rf /', 'rm -rf ~', 'rm -rf ~/', 'rm -rf $HOME', 'rm -rf ~/*', 'rm -rf /*', 'sudo rm -rf /', 'rm -rf /usr', 'rm -fr --no-preserve-root /',
-  'echo ok && rm -rf ~', 'bash -c "rm -rf /"', 'dd if=/dev/zero of=/dev/disk2', 'mkfs.ext4 /dev/sda1', ':(){ :|:& };:', 'chmod -R 777 /', 'echo x > /dev/sda',
+  'echo ok && rm -rf ~', 'for d in a; do rm -rf /; done', 'bash -c "rm -rf /"', 'dd if=/dev/zero of=/dev/disk2', 'mkfs.ext4 /dev/sda1', ':(){ :|:& };:', 'chmod -R 777 /', 'echo x > /dev/sda',
 ]);
 
 test('compound commands: any risky part triggers ask; safe parts do not', () => {
