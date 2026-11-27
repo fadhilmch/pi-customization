@@ -24,6 +24,12 @@ function loadExtension(file) {
 }
 
 function fakePi(active) {
+  const pi = makePi(active);
+  pi.events.owner = pi;
+  return pi;
+}
+
+function makePi(active) {
   const tools = {};
   const commands = {};
   const handlers = {};
@@ -33,6 +39,8 @@ function fakePi(active) {
     registerCommand: (n, o) => { commands[n] = o; },
     on: (n, fn) => { (handlers[n] ||= []).push(fn); },
     getActiveTools: () => active.slice(),
+    emitted: [],
+    events: { emit(n, d) { this.owner.emitted.push([n, d]); } },
   };
 }
 
@@ -50,6 +58,8 @@ test('subagent index: registers the tool and /agents, refuses risky agents when 
     assert.match(pi.tools.subagent.description, /scout/);
     assert.ok(pi.commands.agents, '/agents registered');
     assert.ok(pi.handlers.session_start);
+    assert.ok(pi.handlers.session_shutdown);
+    assert.ok(pi.tools.subagent_wait, 'subagent_wait registered');
 
     // plan mode: the worker (write/edit/bash) is refused without starting a process
     let r = await pi.tools.subagent.execute('1', { agent: 'worker', task: 'edit a file' }, undefined, undefined, ctx(home));
@@ -73,5 +83,64 @@ test('subagent index: registers the tool and /agents, refuses risky agents when 
   } finally {
     if (prev === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = prev;
+  }
+});
+
+// Background runs through index.ts with a scripted stand-in for `pi` (piInvocation runs process.argv[1]).
+test('subagent index: background run returns an id, subagent_wait collects it, the finish event fires, widget comes and goes', { skip: !canStrip && 'needs Module.stripTypeScriptTypes' }, async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sa-bg-'));
+  const quick = path.join(home, 'quick.js');
+  const hang = path.join(home, 'hang.js');
+  fs.writeFileSync(quick, "setTimeout(() => { process.stdout.write(JSON.stringify({ type: 'tool_execution_start', toolName: 'read', args: { path: 'a' } }) + '\\n'); process.stdout.write(JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'bg report' }], stopReason: 'stop', usage: { cost: { total: 0.5 } } } }) + '\\n'); }, 150);");
+  fs.writeFileSync(hang, 'setTimeout(() => {}, 60000);');
+  const prevDir = process.env.PI_CODING_AGENT_DIR;
+  const prevArgv = process.argv[1];
+  process.env.PI_CODING_AGENT_DIR = home;
+  try {
+    const pi = fakePi(['read', 'write', 'edit', 'bash']);
+    loadExtension(path.join(__dirname, '..', 'index.ts'))(pi);
+    const widgets = [];
+    const c = ctx(home, { hasUI: true, ui: { notify() {}, setWidget: (k, v, o) => widgets.push([k, v === undefined ? 'cleared' : 'set', o?.placement]) } });
+    await pi.handlers.session_start[0]({}, c);
+
+    // a bad call is refused now, not when somebody waits
+    let r = await pi.tools.subagent.execute('0', { agent: 'nope', task: 't', background: true }, undefined, undefined, c);
+    assert.equal(r.isError, true);
+    assert.match(r.content[0].text, /Unknown agent/);
+
+    process.argv[1] = quick;
+    r = await pi.tools.subagent.execute('1', { agent: 'scout', task: 'look', background: true }, undefined, undefined, c);
+    assert.match(r.content[0].text, /bg-1.*subagent_wait/);
+    assert.equal(r.details.id, 'bg-1');
+    const w = await pi.tools.subagent_wait.execute('2', { timeoutSeconds: 30 }, undefined);
+    assert.match(w.content[0].text, /## bg-1 scout: look\ndone\n\nbg report/);
+    assert.equal(pi.emitted.length, 1);
+    assert.equal(pi.emitted[0][0], 'subagent:finished');
+    assert.equal(pi.emitted[0][1].id, 'bg-1');
+    assert.equal(pi.emitted[0][1].cost, 0.5);
+    assert.ok(widgets.some((x) => x[1] === 'set' && x[0] === 'subagent' && x[2] === 'belowEditor'), 'widget shown while running');
+    assert.equal(widgets.at(-1)[1], 'cleared', 'widget removed when idle');
+    assert.equal((await pi.tools.subagent_wait.execute('3', {}, undefined)).content[0].text, 'No background subagent runs.');
+
+    // a foreground call shows the widget too and removes it afterwards
+    widgets.length = 0;
+    r = await pi.tools.subagent.execute('4', { agent: 'scout', task: 'look' }, undefined, undefined, c);
+    assert.equal(r.content[0].text, 'bg report');
+    assert.ok(widgets.some((x) => x[1] === 'set'));
+    assert.equal(widgets.at(-1)[1], 'cleared');
+
+    // session shutdown kills background children; the cap resets on session_start
+    process.argv[1] = hang;
+    await pi.tools.subagent.execute('5', { agent: 'scout', task: 'slow', background: true }, undefined, undefined, c);
+    const t0 = Date.now();
+    await pi.handlers.session_shutdown[0]({ reason: 'quit' }, c);
+    const waited = await pi.tools.subagent_wait.execute('6', { ids: ['bg-2', 'bg-3'], timeoutSeconds: 20 }, undefined);
+    assert.ok(Date.now() - t0 < 10000, 'killed, not waited out');
+    assert.match(waited.content[0].text, /## bg-2 scout: slow\ncancelled/);
+    assert.match(waited.content[0].text, /Unknown run id: bg-3/);
+  } finally {
+    process.argv[1] = prevArgv;
+    if (prevDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = prevDir;
   }
 });
