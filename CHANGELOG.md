@@ -65,7 +65,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Fixed
 
 - `auto-mode`: the branch guard follows `git -C <dir>` instead of the session's own branch.
-- `auto-mode`: no more false asks for commands inside loops and `if` blocks, after `uv run` / `poetry run`, for interpreter heredocs, data piped into `python -c`, plain `$'\t'`, and `az` / `gcloud` `--help`.
+- `auto-mode`: commands inside loops, `if` blocks and `{ ...; }` groups, and after `uv run` / `poetry run`, are now classified (before, `for f in a; do rm -rf $f; done` ran without asking). No more false asks for interpreter heredocs, data piped into `python -c`, plain `$'\t'`, and `az` / `gcloud` `--help`.
 - `subagent` tests: the process-group test treats a killed zombie grandchild as exited.
 - `subagent`: plan-mode bypass. When the parent session has neither `write` nor `edit` active (plan mode, `--tools read`), the tool now refuses any agent whose tools are empty (Pi's default set) or include `write`, `edit` or `bash`; only read-only agents such as `scout` run. The bundled `worker` no longer claims that risky commands are blocked when `auto-mode` is not loaded.
 - `subagent`: an agent's `maxOutput` is now enforced on the parent side (single, last chain step, parallel), not only requested in the child's prompt.
