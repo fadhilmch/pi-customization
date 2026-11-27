@@ -48,16 +48,16 @@ export default function (pi: ExtensionAPI) {
         parentSession: sm.getHeader?.()?.parentSession,
         roots: sessionRoots({ sessionDir: sm.getSessionDir?.() }),
       });
-      if (resolved.error) return { content: [{ type: "text", text: `Error: ${resolved.error}` }], details: { error: resolved.error } };
+      if (resolved.error) return { content: [{ type: "text", text: `Error: ${resolved.error}` }], details: { error: resolved.error, path: undefined } };
       let text: string;
       try {
         text = readFileSync(resolved.path, "utf8");
       } catch (err: any) {
         const msg = `Could not read session: ${err?.message ?? err}`;
-        return { content: [{ type: "text", text: `Error: ${msg}` }], details: { error: msg } };
+        return { content: [{ type: "text", text: `Error: ${msg}` }], details: { error: msg, path: undefined } };
       }
       const out = formatTranscript(parseSessionText(text), { query: params?.query, limit: params?.limit });
-      return { content: [{ type: "text", text: out }], details: { path: resolved.path } };
+      return { content: [{ type: "text", text: out }], details: { error: undefined, path: resolved.path } };
     },
   });
 
