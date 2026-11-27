@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `bench/auto-mode` (labelled command fixtures, reports false asks and misses) and `bench/output-diet` (tokens saved per folder), both local scripts with their own README; `tests/bench.test.js` covers them.
 - `npm run typecheck` (strict `tsc`, `tsconfig.json`) over every `extensions/*/index.ts`, run in CI. Fixes found by it: a null token count in the provider statusline, and tool result types in `todo` and `plan-mode`.
 - `/ship [base] [hint]` prompt template: verify, commit, push and create (or update) a PR in one confirm-at-each-step flow, following the `/commit` and `/pr` conventions. `/orchestrate` gains an optional final Ship step.
 - `subagent`: a `subagent` tool that runs single, parallel or chained tasks in separate `pi -p` processes, each with its own model, thinking level, tools, skills and extensions. Children start lean (no extensions, skills or MCP unless the agent asks), get a report-size contract, and their reports are capped before reaching the parent. Usage, cost and tool calls are shown per child. Bundled `scout`, `worker` and `reviewer` agents, user (`~/.pi/agent/agents`) and trusted-project (`.pi/agents`) agents, `/agents`, and `/orchestrate`, `/scout`, `/review` prompt templates. Config in `~/.pi/agent/subagent.json`.
@@ -63,6 +64,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- `auto-mode`: the branch guard follows `git -C <dir>` instead of the session's own branch.
+- `auto-mode`: no more false asks for commands inside loops and `if` blocks, after `uv run` / `poetry run`, for interpreter heredocs, data piped into `python -c`, plain `$'\t'`, and `az` / `gcloud` `--help`.
+- `subagent` tests: the process-group test treats a killed zombie grandchild as exited.
 - `subagent`: plan-mode bypass. When the parent session has neither `write` nor `edit` active (plan mode, `--tools read`), the tool now refuses any agent whose tools are empty (Pi's default set) or include `write`, `edit` or `bash`; only read-only agents such as `scout` run. The bundled `worker` no longer claims that risky commands are blocked when `auto-mode` is not loaded.
 - `subagent`: an agent's `maxOutput` is now enforced on the parent side (single, last chain step, parallel), not only requested in the child's prompt.
 - `subagent`: UTF-8 characters split across stdout or stderr chunks are no longer corrupted.
