@@ -36,7 +36,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-plan-mode`. See the [ro
 - Revised plans: when the model re-submits after **Keep planning**, the dialog shows a compact line diff against the previous submission (changed lines only, capped at 12). The first submission shows no diff.
 - Saved plans: every approved plan is written to `.pi/plans/<timestamp>.md` in the project (directory created, existing files never overwritten). If the write fails you get a warning and approval continues.
 - Indicator: teal `⏸ plan mode on (ctrl+alt+p or /plan to exit)` widget above the editor, plus `setStatus("plan-mode", ...)`. The status also shows in Pi's default footer and in `provider-statusline`.
-- Mode persists as a `plan-mode` session entry (restored on start and `/tree`).
+- Mode persists as a `plan-mode` session entry (restored on start and `/tree`). Tools another extension activates (such as `tool_search`) or that you load while planning (such as a deferred `ask_user`) stay active, and are kept when plan mode ends. `write`, `edit` and `notebook_edit` are never active in plan mode, and `bash_bg` can only list, read and stop jobs, not start them.
 
 ## Config
 

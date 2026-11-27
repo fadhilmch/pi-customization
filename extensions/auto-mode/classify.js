@@ -8,9 +8,9 @@ const { parseShell } = require('./shell.js');
 const P = require('./paths.js');
 const { emptyConfig } = require('./config.js');
 
-const WRITE_TOOLS = new Set(['write', 'edit']);
+const WRITE_TOOLS = new Set(['write', 'edit', 'notebook_edit']);
 const READ_TOOLS = new Set(['read', 'grep', 'find', 'ls']);
-const SHELL_TOOLS = new Set(['bash', 'powershell']);
+const SHELL_TOOLS = new Set(['bash', 'bash_bg', 'powershell']);
 
 const PS_RISK = [
   [/Remove-Item\b[^|;]*-Recurse/i, 'Remove-Item -Recurse'],
@@ -61,6 +61,7 @@ function classifyToolCall(toolName, input, opts = {}) {
 
   // ---- shell tools ----
   if (SHELL_TOOLS.has(toolName)) {
+    if (toolName === 'bash_bg' && inp.action !== 'start') return allow();
     const command = String(inp.command == null ? '' : inp.command);
     const r = classifyBash(command, ctx);
     const denies = r.denies.map((d) => d.reason);

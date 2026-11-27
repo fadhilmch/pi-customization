@@ -1,0 +1,13 @@
+{
+  "name": "@fadhilmch/pi-bg-shell",
+  "version": "0.1.0",
+  "description": "Background shell jobs with incremental, bounded output for Pi",
+  "license": "MIT",
+  "keywords": ["pi-package", "pi", "pi-coding-agent", "background", "shell"],
+  "repository": { "type": "git", "url": "git+https://github.com/fadhilmch/pi-customization.git", "directory": "extensions/bg-shell" },
+  "homepage": "https://github.com/fadhilmch/pi-customization/tree/main/extensions/bg-shell#readme",
+  "bugs": { "url": "https://github.com/fadhilmch/pi-customization/issues" },
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-tui": "*", "typebox": "*" },
+  "files": ["index.ts", "*.js", "README.md"]
+}

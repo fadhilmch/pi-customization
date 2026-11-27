@@ -27,6 +27,8 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`handoff`](extensions/handoff/) | Writes a focused prompt from the current session and starts a fresh one with it, instead of lossy compaction. `/handoff <goal>`. | [png](docs/media/handoff.png) |
 | [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you or a run failed. Skips it while the terminal is focused, honours quiet hours, and can run a command (for example a phone push via ntfy). | — (system notification) |
 | [`quality-on-write`](extensions/quality-on-write/) | Formats files after edits with the project's own formatter, then typechecks and lints touched files (eslint, `ruff check`, `go vet`, `cargo check`) and sends errors back to the model. | [png](docs/media/quality-on-write.png) |
+| [`bg-shell`](extensions/bg-shell/) | `bash_bg` starts long-running shell jobs, reads incremental output, and stops process groups; `/jobs` shows their status. | — |
+| [`notebook`](extensions/notebook/) | `read` renders Jupyter notebooks by cell; `notebook_edit` replaces, inserts or deletes cells while clearing stale code outputs. | — |
 | [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota with reset countdowns or cost (budget colours), cache hit %, cwd, git branch with dirty and ahead/behind markers, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
 
 ### Prompt templates
@@ -49,6 +51,18 @@ Install: they load with the whole package. To use one alone, copy the file into 
 Limits: the templates assume `git` (and, for `/pr`, a local base branch; they do not fetch). They were checked for loading and structure by tests, and their wording was written against the Pi docs; they have not been run end to end with a real model.
 
 Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`) and `midnight-aurora` (neon pink/teal/lime, in `themes/`).
+
+## Keeping tool definitions small
+
+`/context` shows active tools and their estimated token sizes. These user configs support `exposure: "direct"` (default) or `"deferred"`: `ask-user.json`, `subagent.json`, `bg-shell.json`, and `notebook.json` in `~/.pi/agent/`. `direct` means the tool is declared to the model while active; for `ask_user` and `subagent` (tools that ask the user or orchestrate processes) it is registered as Pi's `model-only`, so codemode scripts cannot call them. Project config cannot change exposure. The `todo` and `exit_plan_mode` tools are not part of this setting.
+
+Tools registered with `exposure: "deferred"` stay out of the prompt until `tool_search` finds and activates them. Good candidates are tools used only on some tasks, such as `notebook_edit`. Keep tools used most turns `direct`, because a deferred tool adds a `tool_search` call before its first use. MCP servers use the same setting in `mcp.json`:
+
+```json
+{ "mcpServers": { "docs": { "command": "mcp-server", "exposure": "deferred" } } }
+```
+
+Large MCP servers can contribute more active definitions than this repo. Activating a tool mid-session adds a tool change to the transcript. Providers that cannot represent tool changes receive a full checkpoint, which can invalidate the prompt cache once. A real `github-copilot/gpt-6-luna` spike discovered and called `ask_user` in three requests: 1,382, 2,201, and 2,314 provider-reported tokens (5,897 total, estimated $0.00045352). This measures the whole scenario, not the marginal cost of `tool_search`; that cost varies with provider and context.
 
 ## Pairs well with
 

@@ -48,6 +48,8 @@ No network is used.
 | `subagent` | `subagent.gif/png`, `subagent-running.png`, `subagent-expanded.png` | subagent, claude-look (children are real `pi -p` processes on the demo provider) |
 | `usage-report` | `usage-report.gif`, `usage-report-context.png`, `usage-report-cost.png`, `subagent-agents.png` | subagent, usage-report, claude-look (a subagent session, then `/context`, `/cost`, `/agents`) |
 | `ask-user` | `ask-user.gif/png`, `ask-user-picker.png` | ask-user, claude-look (answers one question, types an "Other" answer) |
+| `bg-shell` | `bg-shell.gif/png`, `bg-shell-stopped.png` (tape included, not yet recorded) | bg-shell, claude-look (starts a background job, opens `/jobs`, then stops it) |
+| `notebook` | `notebook.gif/png` (tape included, not yet recorded) | notebook, claude-look (reads the sample notebook and edits one cell) |
 | `output-diet` | `output-diet.gif/png` | output-diet, claude-look (a 2000-line log folded, a repeated read deduped, then `/diet`) |
 
 `notify` is not recorded (a macOS notification cannot be captured in the terminal).

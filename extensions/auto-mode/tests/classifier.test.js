@@ -202,6 +202,14 @@ test('unknown / MCP tools: allowed in auto, ask in ask mode', () => {
   assert.equal(run('mcp__x__do_thing', { a: 1 }, { mode: 'ask' }).action, 'ask');
 });
 
+test('bash_bg start uses the bash safety classifier; read controls are allowed', () => {
+  assert.equal(run('bash_bg', { action: 'start', command: 'ls' }).action, 'allow');
+  assert.equal(run('bash_bg', { action: 'start', command: 'rm -rf build' }).action, 'ask');
+  assert.equal(run('bash_bg', { action: 'start', command: 'rm -rf ~' }).action, 'deny');
+  assert.equal(run('bash_bg', { action: 'output', id: 'bg1' }).action, 'allow');
+  assert.equal(run('bash_bg', { action: 'list' }).action, 'allow');
+});
+
 // ---- modes ----
 test('ask mode confirms every bash/write/edit but not plain reads', () => {
   assert.equal(bash('ls', { mode: 'ask' }).action, 'ask');

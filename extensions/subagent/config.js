@@ -17,6 +17,7 @@ const DEFAULTS = Object.freeze({
   concurrency: 3,
   timeoutMinutes: 20,
   maxDepth: 1, // children cannot delegate further
+  exposure: 'direct',
   maxSpawns: 64, // children started per session, across all calls
 });
 
@@ -59,6 +60,7 @@ function parseConfig(raw) {
     concurrency: int(raw.concurrency, DEFAULTS.concurrency, 1, 8),
     timeoutMinutes: int(raw.timeoutMinutes, DEFAULTS.timeoutMinutes, 0, 24 * 60),
     maxDepth: int(raw.maxDepth, DEFAULTS.maxDepth, 0, 3),
+    exposure: ['direct', 'deferred'].includes(raw.exposure) ? raw.exposure : DEFAULTS.exposure,
     maxSpawns: int(raw.maxSpawns, DEFAULTS.maxSpawns, 1, 1000),
   };
 }
