@@ -11,7 +11,6 @@ const { emptyConfig } = require('./config.js');
 const WRITE_TOOLS = new Set(['write', 'edit', 'notebook_edit']);
 const READ_TOOLS = new Set(['read', 'grep', 'find', 'ls']);
 const SHELL_TOOLS = new Set(['bash', 'bash_bg', 'powershell']);
-const NETWORK_TOOLS = new Set(['web_fetch', 'web_search']);
 
 const PS_RISK = [
   [/Remove-Item\b[^|;]*-Recurse/i, 'Remove-Item -Recurse'],
@@ -79,20 +78,6 @@ function classifyToolCall(toolName, input, opts = {}) {
       return Object.assign(ask([mk('ask-mode', why, `cmd:${command}`, findings.some((f) => f.severity === 'high') ? 'high' : 'normal')]), { findings });
     }
     return findings.length ? ask(findings) : allow();
-  }
-
-  // Web calls transmit user input to a third party. Keep deny rules active in
-  // every mode and require confirmation in ask mode, just like shell calls.
-  if (NETWORK_TOOLS.has(toolName)) {
-    const payload = toolName === 'web_fetch' ? inp.url : inp.query;
-    const text = `${toolName} ${String(payload ?? '')}`;
-    const d = configMatches(config.deny, text);
-    if (d) return deny([`matches deny rule /${d.source}/`]);
-    const a = configMatches(config.ask, text);
-    if (mode === 'ask') {
-      return ask([mk('ask-mode', `ask mode: confirm network call "${toolName}"`, `tool:${toolName}:${text}`)]);
-    }
-    return a ? ask([mk('config-ask', `matches ask rule /${a.source}/`, a.source)]) : allow();
   }
 
   // ---- file mutation ----

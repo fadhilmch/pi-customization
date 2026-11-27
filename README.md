@@ -27,7 +27,6 @@ Install all of it, or only the tools you want. Each extension is self-contained 
 | [`handoff`](extensions/handoff/) | Writes a focused prompt from the current session and starts a fresh one with it, instead of lossy compaction. `/handoff <goal>`. | [png](docs/media/handoff.png) |
 | [`notify`](extensions/notify/) | Desktop or terminal notification when Pi is waiting for you after a long run. | — (system notification) |
 | [`quality-on-write`](extensions/quality-on-write/) | Formats files after edits with the project's own formatter, then typechecks touched files and sends errors back to the model. | [png](docs/media/quality-on-write.png) |
-| [`web`](extensions/web/) | `web_fetch` returns bounded Markdown from a page or heading; `web_search` finds pages through Exa (or Brave or Tavily) when a key is set. | — |
 | [`bg-shell`](extensions/bg-shell/) | `bash_bg` starts long-running shell jobs, reads incremental output, and stops process groups; `/jobs` shows their status. | — |
 | [`notebook`](extensions/notebook/) | `read` renders Jupyter notebooks by cell; `notebook_edit` replaces, inserts or deletes cells while clearing stale code outputs. | — |
 | [`provider-statusline`](extensions/provider-statusline/) | Two-line footer: model, thinking level, context bar, Claude/Codex 5h/7d quota or cost, cwd, git branch, open PR. Replaces Pi's footer. | [png](docs/media/provider-statusline.png) |
@@ -56,9 +55,9 @@ Themes: `claude-dark` (Claude Code's dark palette, shipped inside `claude-look`)
 
 ## Keeping tool definitions small
 
-`/context` shows active tools and their estimated token sizes. These user configs support `exposure: "direct"` (default) or `"deferred"`: `ask-user.json`, `subagent.json`, `web.json`, `bg-shell.json`, and `notebook.json` in `~/.pi/agent/`. `direct` means the tool is declared to the model while active; for `ask_user` and `subagent` (tools that ask the user or orchestrate processes) it is registered as Pi's `model-only`, so codemode scripts cannot call them. Project config cannot change exposure. The `todo` and `exit_plan_mode` tools are not part of this setting.
+`/context` shows active tools and their estimated token sizes. These user configs support `exposure: "direct"` (default) or `"deferred"`: `ask-user.json`, `subagent.json`, `bg-shell.json`, and `notebook.json` in `~/.pi/agent/`. `direct` means the tool is declared to the model while active; for `ask_user` and `subagent` (tools that ask the user or orchestrate processes) it is registered as Pi's `model-only`, so codemode scripts cannot call them. Project config cannot change exposure. The `todo` and `exit_plan_mode` tools are not part of this setting.
 
-Tools registered with `exposure: "deferred"` stay out of the prompt until `tool_search` finds and activates them. Good candidates are tools used only on some tasks, such as `notebook_edit` and `web_search`. Keep tools used most turns `direct`, because a deferred tool adds a `tool_search` call before its first use. MCP servers use the same setting in `mcp.json`:
+Tools registered with `exposure: "deferred"` stay out of the prompt until `tool_search` finds and activates them. Good candidates are tools used only on some tasks, such as `notebook_edit`. Keep tools used most turns `direct`, because a deferred tool adds a `tool_search` call before its first use. MCP servers use the same setting in `mcp.json`:
 
 ```json
 { "mcpServers": { "docs": { "command": "mcp-server", "exposure": "deferred" } } }
