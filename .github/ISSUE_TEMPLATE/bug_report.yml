@@ -16,7 +16,6 @@ body:
         - notify
         - quality-on-write
         - provider-statusline
-        - vim-editor
         - themes
         - packaging / install
     validations:
