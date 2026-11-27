@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Pi package](https://img.shields.io/badge/pi-package-8a63d2.svg)](https://pi.dev/packages)
 
-Extensions and themes for the [Pi coding agent](https://pi.dev) that make it feel like Claude Code: the same look, an auto mode that only asks before risky actions, plan mode, a todo list, subagents, web search and fetch, rewind checkpoints, notifications, and format/typecheck after edits.
+Extensions and themes for the [Pi coding agent](https://pi.dev) that make it feel like Claude Code: the same look, an auto mode that only asks before risky actions, plan mode, a todo list, subagents, rewind checkpoints, notifications, and format/typecheck after edits.
 
 ![Pi with pi-customization](docs/media/hero.gif)
 
