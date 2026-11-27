@@ -105,6 +105,10 @@ function parsePyright(output, baseDir) {
 }
 
 const PARSERS = { tsc: parseTsc, mypy: parseMypy, pyright: parsePyright };
+// lint.js registers its parsers here so parseOutput stays the single entry point.
+function registerParsers(more) {
+  Object.assign(PARSERS, more);
+}
 
 function parseOutput(name, output, baseDir) {
   return (PARSERS[name] || (() => []))(output, baseDir);
@@ -164,4 +168,4 @@ function signatureOf(errors) {
   return errors.map((e) => `${e.file}:${e.line}:${e.text}`).sort().join("\n");
 }
 
-module.exports = { planCheck, Batch, parseTsc, parseMypy, parsePyright, parseOutput, selectErrors, buildFeedback, FeedbackGuard, signatureOf };
+module.exports = { registerParsers, planCheck, Batch, parseTsc, parseMypy, parsePyright, parseOutput, selectErrors, buildFeedback, FeedbackGuard, signatureOf };

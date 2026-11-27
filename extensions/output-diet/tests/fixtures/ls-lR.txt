@@ -1,0 +1,38 @@
+.:
+total 8
+-rw-r--r--  1 u  staff  120 Jan  5 10:00 README.md
+drwxr-xr-x  3 u  staff   96 Jan  5 10:00 src
+
+./src:
+total 8
+-rw-r--r--  1 u  staff  100 Jan  5 10:00 f1.js
+-rw-r--r--  1 u  staff  200 Jan  5 10:00 f2.js
+-rw-r--r--  1 u  staff  300 Jan  5 10:00 f3.js
+-rw-r--r--  1 u  staff  400 Jan  5 10:00 f4.js
+-rw-r--r--  1 u  staff  500 Jan  5 10:00 f5.js
+-rw-r--r--  1 u  staff  600 Jan  5 10:00 f6.js
+-rw-r--r--  1 u  staff  700 Jan  5 10:00 f7.js
+-rw-r--r--  1 u  staff  800 Jan  5 10:00 f8.js
+-rw-r--r--  1 u  staff  900 Jan  5 10:00 f9.js
+-rw-r--r--  1 u  staff  1000 Jan  5 10:00 f10.js
+-rw-r--r--  1 u  staff  1100 Jan  5 10:00 f11.js
+-rw-r--r--  1 u  staff  1200 Jan  5 10:00 f12.js
+-rw-r--r--  1 u  staff  1300 Jan  5 10:00 f13.js
+-rw-r--r--  1 u  staff  1400 Jan  5 10:00 f14.js
+-rw-r--r--  1 u  staff  1500 Jan  5 10:00 f15.js
+-rw-r--r--  1 u  staff  1600 Jan  5 10:00 f16.js
+-rw-r--r--  1 u  staff  1700 Jan  5 10:00 f17.js
+-rw-r--r--  1 u  staff  1800 Jan  5 10:00 f18.js
+-rw-r--r--  1 u  staff  1900 Jan  5 10:00 f19.js
+-rw-r--r--  1 u  staff  2000 Jan  5 10:00 f20.js
+-rw-r--r--  1 u  staff  2100 Jan  5 10:00 f21.js
+-rw-r--r--  1 u  staff  2200 Jan  5 10:00 f22.js
+-rw-r--r--  1 u  staff  2300 Jan  5 10:00 f23.js
+-rw-r--r--  1 u  staff  2400 Jan  5 10:00 f24.js
+-rw-r--r--  1 u  staff  2500 Jan  5 10:00 f25.js
+-rw-r--r--  1 u  staff  2600 Jan  5 10:00 f26.js
+-rw-r--r--  1 u  staff  2700 Jan  5 10:00 f27.js
+-rw-r--r--  1 u  staff  2800 Jan  5 10:00 f28.js
+-rw-r--r--  1 u  staff  2900 Jan  5 10:00 f29.js
+-rw-r--r--  1 u  staff  3000 Jan  5 10:00 f30.js
+

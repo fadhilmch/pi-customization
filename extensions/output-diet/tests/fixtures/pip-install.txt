@@ -1,0 +1,74 @@
+Requirement already satisfied: pkg1 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 1)) (1.1.0)
+Requirement already satisfied: pkg2 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 2)) (1.2.0)
+Requirement already satisfied: pkg3 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 3)) (1.3.0)
+Requirement already satisfied: pkg4 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 4)) (1.4.0)
+Requirement already satisfied: pkg5 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 5)) (1.5.0)
+Requirement already satisfied: pkg6 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 6)) (1.6.0)
+Requirement already satisfied: pkg7 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 7)) (1.7.0)
+Requirement already satisfied: pkg8 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 8)) (1.8.0)
+Requirement already satisfied: pkg9 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 9)) (1.9.0)
+Requirement already satisfied: pkg10 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 10)) (1.10.0)
+Requirement already satisfied: pkg11 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 11)) (1.11.0)
+Requirement already satisfied: pkg12 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 12)) (1.12.0)
+Requirement already satisfied: pkg13 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 13)) (1.13.0)
+Requirement already satisfied: pkg14 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 14)) (1.14.0)
+Requirement already satisfied: pkg15 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 15)) (1.15.0)
+Requirement already satisfied: pkg16 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 16)) (1.16.0)
+Requirement already satisfied: pkg17 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 17)) (1.17.0)
+Requirement already satisfied: pkg18 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 18)) (1.18.0)
+Requirement already satisfied: pkg19 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 19)) (1.19.0)
+Requirement already satisfied: pkg20 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 20)) (1.20.0)
+Requirement already satisfied: pkg21 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 21)) (1.21.0)
+Requirement already satisfied: pkg22 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 22)) (1.22.0)
+Requirement already satisfied: pkg23 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 23)) (1.23.0)
+Requirement already satisfied: pkg24 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 24)) (1.24.0)
+Requirement already satisfied: pkg25 in /venv/lib/python3.12/site-packages (from -r requirements.txt (line 25)) (1.25.0)
+Collecting newpkg1
+  Downloading newpkg1-2.0-py3-none-any.whl (10 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.0/10.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg2
+  Downloading newpkg2-2.0-py3-none-any.whl (20 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 20.0/20.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg3
+  Downloading newpkg3-2.0-py3-none-any.whl (30 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 30.0/30.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg4
+  Downloading newpkg4-2.0-py3-none-any.whl (40 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.0/40.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg5
+  Downloading newpkg5-2.0-py3-none-any.whl (50 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.0/50.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg6
+  Downloading newpkg6-2.0-py3-none-any.whl (60 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.0/60.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg7
+  Downloading newpkg7-2.0-py3-none-any.whl (70 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 70.0/70.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg8
+  Downloading newpkg8-2.0-py3-none-any.whl (80 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 80.0/80.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg9
+  Downloading newpkg9-2.0-py3-none-any.whl (90 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.0/90.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg10
+  Downloading newpkg10-2.0-py3-none-any.whl (100 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.0/100.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg11
+  Downloading newpkg11-2.0-py3-none-any.whl (110 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 110.0/110.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg12
+  Downloading newpkg12-2.0-py3-none-any.whl (120 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg13
+  Downloading newpkg13-2.0-py3-none-any.whl (130 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 130.0/130.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg14
+  Downloading newpkg14-2.0-py3-none-any.whl (140 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.0/140.0 kB 3.1 MB/s eta 0:00:00
+Collecting newpkg15
+  Downloading newpkg15-2.0-py3-none-any.whl (150 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 150.0/150.0 kB 3.1 MB/s eta 0:00:00
+Installing collected packages: newpkg1, newpkg2, newpkg3, newpkg4, newpkg5, newpkg6, newpkg7, newpkg8, newpkg9, newpkg10, newpkg11, newpkg12, newpkg13, newpkg14, newpkg15
+WARNING: The script foo is installed in /venv/bin which is not on PATH.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed.
+Successfully installed newpkg1-2.0 newpkg2-2.0 newpkg3-2.0 newpkg4-2.0 newpkg5-2.0 newpkg6-2.0 newpkg7-2.0 newpkg8-2.0 newpkg9-2.0 newpkg10-2.0 newpkg11-2.0 newpkg12-2.0 newpkg13-2.0 newpkg14-2.0 newpkg15-2.0

@@ -1,0 +1,46 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-8.0.0
+collected 120 items
+
+tests/test_mod1.py ....................  [4%]
+tests/test_mod2.py ....................  [8%]
+tests/test_mod3.py ..................F.  [12%]
+tests/test_mod4.py ....................  [16%]
+tests/test_mod5.py ....................  [20%]
+tests/test_mod6.py ....................  [24%]
+tests/test_mod7.py ....................  [28%]
+tests/test_mod8.py ....................  [32%]
+tests/test_mod9.py ....................  [36%]
+tests/test_mod10.py ....................  [40%]
+tests/test_mod11.py ....................  [44%]
+tests/test_mod12.py ....................  [48%]
+tests/test_mod13.py ....................  [52%]
+tests/test_mod14.py ....................  [56%]
+tests/test_mod15.py ....................  [60%]
+tests/test_mod16.py ....................  [64%]
+tests/test_mod17.py ....................  [68%]
+tests/test_mod18.py ....................  [72%]
+tests/test_mod19.py ....................  [76%]
+tests/test_mod20.py ....................  [80%]
+tests/test_mod21.py ....................  [84%]
+tests/test_mod22.py ....................  [88%]
+tests/test_mod23.py ....................  [92%]
+tests/test_mod24.py ....................  [96%]
+tests/test_mod25.py ....................  [100%]
+tests/test_mod26.py ....................  [100%]
+tests/test_mod27.py ....................  [100%]
+tests/test_mod28.py ....................  [100%]
+tests/test_mod29.py ....................  [100%]
+tests/test_mod30.py ....................  [100%]
+
+=================================== FAILURES ===================================
+______________________________ test_parse_empty _______________________________
+
+    def test_parse_empty():
+>       assert parse("") == []
+E       AssertionError: assert None == []
+
+tests/test_mod3.py:42: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_mod3.py::test_parse_empty - AssertionError: assert None == []
+======================== 1 failed, 119 passed in 3.21s =========================

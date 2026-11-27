@@ -17,7 +17,7 @@ function fakeEnv(files, bins = []) {
     which: (b) => (bins.includes(b) ? '/usr/bin/' + b : undefined),
   };
 }
-const cfg = (over = {}) => ({ format: true, typecheck: true, formatters: {}, disable: [], ...over });
+const cfg = (over = {}) => ({ format: true, typecheck: true, lint: true, formatters: {}, disable: [], ...over });
 
 test('config: user config parsed, project config may only disable', () => {
   const files = {
@@ -36,7 +36,7 @@ test('config: project cannot re-enable what user disabled; bad JSON ignored', ()
   const rf = (f) => { if (f in files) return files[f]; throw new Error('x'); };
   assert.equal(cfgMod.loadConfig({ home: '/h', cwd: '/p', readFile: rf }).format, false);
   const bad = cfgMod.loadConfig({ home: '/h', cwd: '/q', readFile: () => '{nope' });
-  assert.deepEqual(bad, { format: true, typecheck: true, formatters: {}, disable: [] });
+  assert.deepEqual(bad, { format: true, typecheck: true, lint: true, formatters: {}, disable: [] });
   assert.deepEqual(cfgMod.parseUser({ formatters: { ts: 'rm -rf', js: [], css: [1] } }).formatters, {});
 });
 
@@ -198,4 +198,76 @@ test('resolveToolPath mirrors Pi (@ prefix, ~, relative)', () => {
   assert.equal(resolveToolPath('@src/a.ts', '/p', '/h'), path.resolve('/p/src/a.ts'));
   assert.equal(resolveToolPath('~/x.ts', '/p', '/h'), path.resolve('/h/x.ts'));
   assert.equal(resolveToolPath('/abs/a.ts', '/p', '/h'), '/abs/a.ts');
+});
+
+const lint = require('../lint.js');
+
+test('config: lint flag; user may disable, project may only disable', () => {
+  const rf = (files) => (f) => { if (f in files) return files[f]; throw new Error('x'); };
+  assert.equal(cfgMod.loadConfig({ home: '/h', cwd: '/p', readFile: rf({}) }).lint, true);
+  assert.equal(cfgMod.loadConfig({ home: '/h', cwd: '/p', readFile: rf({ '/h/.pi/agent/quality.json': '{"lint":false}' }) }).lint, false);
+  assert.equal(cfgMod.loadConfig({ home: '/h', cwd: '/p', readFile: rf({ '/p/.pi/quality.json': '{"lint":false}' }) }).lint, false);
+  // project `true` cannot re-enable what the user turned off
+  assert.equal(cfgMod.loadConfig({ home: '/h', cwd: '/p', readFile: rf({ '/h/.pi/agent/quality.json': '{"lint":false}', '/p/.pi/quality.json': '{"lint":true}' }) }).lint, false);
+});
+
+test('planLint: eslint needs config + local binary', () => {
+  const bin = '/p/node_modules/.bin/eslint';
+  const names = (f, files, bins, over) => lint.planLint(f, cfg(over), fakeEnv(files, bins)).map((p) => p.name);
+  assert.deepEqual(names('/p/src/a.ts', { '/p/eslint.config.js': '', [bin]: '' }), ['eslint']);
+  assert.deepEqual(names('/p/src/a.ts', { '/p/package.json': '{"eslintConfig":{}}', [bin]: '' }), ['eslint']);
+  assert.deepEqual(names('/p/src/a.ts', { '/p/eslint.config.js': '' }, ['eslint']), [], 'global eslint is never used');
+  assert.deepEqual(names('/p/src/a.ts', { [bin]: '' }), [], 'no config');
+  assert.deepEqual(names('/p/src/a.ts', { '/p/eslint.config.js': '', [bin]: '' }, [], { disable: ['eslint'] }), []);
+  assert.deepEqual(names('/p/src/a.ts', { '/p/eslint.config.js': '', [bin]: '' }, [], { lint: false }), []);
+  const [plan] = lint.planLint('/p/a.js', cfg(), fakeEnv({ '/p/eslint.config.js': '', [bin]: '' }));
+  assert.deepEqual([plan.bin, plan.cwd, plan.appendFiles], [bin, '/p', true]);
+});
+
+test('planLint: ruff, go vet, cargo check', () => {
+  const names = (f, files, bins, over) => lint.planLint(f, cfg(over), fakeEnv(files, bins)).map((p) => p.name);
+  assert.deepEqual(names('/p/a.py', { '/p/pyproject.toml': '[tool.ruff.lint]\n' }, ['ruff']), ['ruff-check']);
+  assert.deepEqual(names('/p/a.py', { '/p/ruff.toml': '', '/p/.venv/bin/ruff': '' }), ['ruff-check']);
+  assert.deepEqual(names('/p/a.py', { '/p/pyproject.toml': '[tool.ruff]' }), [], 'ruff unavailable');
+  assert.deepEqual(names('/p/a.py', { '/p/pyproject.toml': '[tool.black]' }, ['ruff']), [], 'no ruff config');
+  assert.deepEqual(names('/p/a.py', { '/p/ruff.toml': '' }, ['ruff'], { disable: ['ruff-check'] }), []);
+  assert.deepEqual(names('/p/x/a.go', { '/p/go.mod': '' }, ['go']), ['go-vet']);
+  assert.deepEqual(names('/p/x/a.go', { '/p/go.mod': '' }), []);
+  assert.deepEqual(names('/p/x/a.go', {}, ['go']), []);
+  const [cargo] = lint.planLint('/p/src/a.rs', cfg(), fakeEnv({ '/p/Cargo.toml': '' }, ['cargo']));
+  assert.deepEqual([cargo.name, cargo.cwd, cargo.timeoutMs], ['cargo-check', '/p', lint.CARGO_TIMEOUT_MS]);
+  assert.deepEqual(names('/p/src/a.rs', { '/p/Cargo.toml': '' }, ['cargo'], { disable: ['cargo-check'] }), []);
+  assert.deepEqual(names('/p/src/a.toml', { '/p/Cargo.toml': '' }, ['cargo']), [], 'only touched .rs files');
+});
+
+test('lint parsers', () => {
+  const es = JSON.stringify([
+    { filePath: '/p/a.js', messages: [{ severity: 2, line: 3, ruleId: 'no-undef', message: "'x' is not defined." }, { severity: 1, line: 4, ruleId: 'semi', message: 'warn' }] },
+    { filePath: '/p/b.js', messages: [{ severity: 2, line: 1, ruleId: null, message: 'Parsing error' }] },
+  ]);
+  assert.deepEqual(tc.parseOutput('eslint', 'noise\n' + es + '\n', '/p'), [
+    { file: '/p/a.js', line: 3, text: "no-undef: 'x' is not defined." },
+    { file: '/p/b.js', line: 1, text: 'Parsing error' },
+  ]);
+  assert.deepEqual(tc.parseOutput('eslint', '[not json', '/p'), []);
+  assert.deepEqual(tc.parseOutput('ruff-check', "a.py:2:8: F401 [*] `os` imported but unused\nFound 1 error.\n", '/p'), [{ file: '/p/a.py', line: 2, text: 'F401 [*] `os` imported but unused' }]);
+  assert.deepEqual(tc.parseOutput('go-vet', '# pkg\n./a.go:5:2: unreachable code\nvet: b.go:1:1: bad\n', '/p'), [
+    { file: '/p/a.go', line: 5, text: 'unreachable code' },
+    { file: '/p/b.go', line: 1, text: 'bad' },
+  ]);
+  assert.deepEqual(tc.parseOutput('cargo-check', 'src/a.rs:3:5: error[E0425]: cannot find value `x`\nsrc/a.rs:4:1: warning: unused\nerror: could not compile\n', '/p'), [{ file: '/p/src/a.rs', line: 3, text: 'E0425: cannot find value `x`' }]);
+});
+
+test('runChecks: lint plan filters to touched files, honours plan timeout, shares signature', async () => {
+  const plan = { name: 'ruff-check', bin: 'ruff', args: ['check'], cwd: '/p', key: 'r', appendFiles: true, timeoutMs: 5000 };
+  let opts;
+  const out = 'a.py:1:1: F401 unused\nold.py:1:1: E501 long\n';
+  const r = await runChecks([{ plan, files: ['/p/a.py'] }], { run: async (b, a, o) => { opts = o; return { ok: false, code: 1, stdout: out, stderr: '' }; } });
+  assert.equal(opts.timeoutMs, 5000);
+  assert.equal(r.problems[0].errors.length, 1);
+  assert.equal(r.problems[0].others, 1);
+  assert.match(r.problems[0].message, /ruff-check found 1 error/);
+  assert.match(r.signature, /a\.py:1:F401 unused/);
+  const to = await runChecks([{ plan, files: ['/p/a.py'] }], { run: async () => ({ ok: false, timedOut: true }) });
+  assert.match(to.warnings[0], /timed out after 5s/);
 });

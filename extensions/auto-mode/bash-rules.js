@@ -15,7 +15,10 @@ function mk(id, reason, key, severity) {
 
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'ash', 'csh', 'tcsh']);
 const NET_SRC = new Set(['curl', 'wget', 'nc', 'ncat', 'fetch', 'http', 'https', 'xh']);
-const HEREDOC_SAFE = new Set(['cat', 'tee', 'git', 'gh', 'echo', 'printf', 'jq', 'grep', 'egrep', 'sed', 'awk', 'wc', 'sort', 'uniq', 'head', 'tail', 'base64', 'less', 'more', 'diff', 'patch', 'xargs', 'read', 'mail', 'sendmail']);
+const INTERPRETER = /^(python[\d.]*|node|ruby|perl|php|deno|bun)$/;
+// `curl x | python3 -c '...'` or `| python3 parse.py`: stdin is data, the code comes from the argument.
+const hasOwnCode = (args) => args.some((a) => /^-[cemrp]$/.test(a) || (a !== '-' && !a.startsWith('-')));
+const HEREDOC_SAFE =new Set(['cat', 'tee', 'git', 'gh', 'echo', 'printf', 'jq', 'grep', 'egrep', 'sed', 'awk', 'wc', 'sort', 'uniq', 'head', 'tail', 'base64', 'less', 'more', 'diff', 'patch', 'xargs', 'read', 'mail', 'sendmail']);
 const DB_CLIS = new Set(['psql', 'mysql', 'mariadb', 'sqlite3', 'sqlite', 'mongosh', 'mongo', 'redis-cli', 'clickhouse-client', 'duckdb', 'cockroach', 'usql', 'sqlcmd']);
 const NO_ARG_SCAN = new Set(['echo', 'printf', 'which', 'type', 'ls', 'test', '[', '[[', 'stat', 'file', 'cd', 'man', 'help', 'export', 'unset', 'set', 'alias', 'true', 'false']);
 const WRITE_ALL = new Set(['mv', 'tee', 'touch', 'mkdir', 'rmdir', 'truncate', 'rm', 'shred', 'unlink']);
@@ -81,13 +84,24 @@ function sqlRisk(text) {
 }
 
 // ---- wrapper unwrapping ------------------------------------------------------
+const SHELL_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '!', '{']);
+// `uv run python - <<EOF`, `poetry run pytest`: classify the command they run.
+const RUNNERS = new Set(['uv', 'poetry', 'pipenv', 'pdm', 'hatch']);
+const RUNNER_VALUE_OPTS = new Set(['--with', '--python', '-p', '--project', '--directory', '--env-file', '--package', '--group', '--extra', '--index', '--env', '-e']);
 function unwrap(tokens, out) {
   const t = tokens.slice();
   let guard = 0;
   while (t.length && guard++ < 10) {
     while (t.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(t[0])) t.shift();
     if (!t.length) break;
+    // `for x in a; do rm -rf $x; done` splits into a segment `do rm -rf $x`: the command follows the keyword.
+    if (SHELL_KEYWORDS.has(t[0])) { t.shift(); continue; }
     const c = cmdName(t[0]);
+    if (RUNNERS.has(c) && t[1] === 'run') {
+      t.splice(0, 2);
+      while (t.length && t[0].startsWith('-')) { if (RUNNER_VALUE_OPTS.has(t.shift())) t.shift(); }
+      continue;
+    }
     if (c === 'sudo' || c === 'doas' || c === 'pkexec') {
       out.findings.push(mk('sudo', `privileged command (${c})`, ''));
       t.shift();
@@ -177,25 +191,57 @@ function checkReadPath(p, ctx, how, strict) {
 // ---- git -----------------------------------------------------------------------
 const MAIN_BRANCHES = /^(main|master|trunk|production|prod|release)$/;
 
+// dir: the directory `git -C <path>` points at (several -C compose, like git does), or null.
 function gitParts(args) {
   let i = 0;
+  let dir = null;
   while (i < args.length) {
     const a = args[i];
-    if (['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'].includes(a)) i += 2;
+    if (a === '-C') {
+      const p = args[i + 1];
+      if (p !== undefined) dir = dir === null || path.isAbsolute(p) ? p : path.join(dir, p);
+      i += 2;
+    } else if (['-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'].includes(a)) i += 2;
     else if (a.startsWith('-')) i++;
     else break;
   }
-  return { sub: args[i], rest: args.slice(i + 1) };
+  return { sub: args[i], rest: args.slice(i + 1), dir };
 }
 
-function gitRules(args, out) {
-  const { sub, rest } = gitParts(args);
+// Branch guard: ctx.currentBranch is a string or a lazy (dir) => string|null, where dir is the
+// `git -C` target (null when absent); ctx.protectedBranches a list.
+function protectedCurrentBranch(ctx, dir = null) {
+  const list = ctx.protectedBranches;
+  if (!list || !list.length) return null;
+  let b = ctx.currentBranch;
+  if (typeof b === 'function') { try { b = b(dir); } catch { b = null; } }
+  return b && list.includes(b) ? b : null;
+}
+
+function gitRules(args, out, ctx = {}) {
+  const { sub, rest, dir } = gitParts(args);
   if (!sub) return;
   const { short, long } = flagSet(rest);
   const pos = positional(rest);
   const has = (...names) => names.some((n) => long.has(n) || (n.length === 2 && short.has(n[1])));
   switch (sub) {
+    case 'commit': {
+      if (has('--dry-run')) return;
+      const b = protectedCurrentBranch(ctx, dir);
+      if (b) out.findings.push(mk('branch-guard', `git commit on protected branch ${b}`, `commit:${b}`));
+      return;
+    }
     case 'push': {
+      const b = protectedCurrentBranch(ctx, dir);
+      if (b) {
+        const refs = pos.slice(1);
+        const targetsCurrent = !refs.length || refs.some((a) => {
+          const ref = a.replace(/^\+/, '');
+          const dst = ref.includes(':') ? ref.split(':').pop() : ref;
+          return dst.replace(/^refs\/heads\//, '') === b || (!ref.includes(':') && ref === 'HEAD');
+        });
+        if (targetsCurrent) out.findings.push(mk('branch-guard', `git push from protected branch ${b}`, `push:${b}`));
+      }
       const force = has('--force', '-f', '--force-with-lease', '--force-if-includes', '--mirror') || rest.some((a) => /^\+\S/.test(a) && !a.startsWith('+-'));
       const del = has('--delete', '-d') || rest.some((a) => /^:\S/.test(a));
       const toMain = rest.some((a) => {
@@ -282,6 +328,7 @@ function cloudRules(cmd, args, out) {
     return;
   }
   if (cmd === 'gcloud' || cmd === 'az') {
+    if (args.includes('--help') || args.includes('-h')) return;
     if (pos.some((w) => CLOUD_MUT_WORDS.test(w))) {
       const w = pos.find((x) => CLOUD_MUT_WORDS.test(x));
       out.findings.push(mk('cloud-mutate', `${cmd} ${pos.slice(0, 3).join(' ')} (mutating: ${w})`, `${cmd} ${pos.slice(0, 3).join(' ')}`));
@@ -500,7 +547,8 @@ function classifySegment(seg, ctx, depth, out) {
     out.findings.push(mk('uncertain', 'command name comes from a variable/substitution', ''));
   }
 
-  if (seg.heredocs.length && !HEREDOC_SAFE.has(cmd)) {
+  // A heredoc into python/node is as unchecked as `python -c`, which is allowed (see Limits).
+  if (seg.heredocs.length && !HEREDOC_SAFE.has(cmd) && !INTERPRETER.test(cmd)) {
     out.findings.push(mk('uncertain', `heredoc fed to ${cmd} (body not analysed)`, `heredoc:${cmd}`));
   }
 
@@ -513,7 +561,7 @@ function classifySegment(seg, ctx, depth, out) {
     const net = NET_SRC.has(prevCmd);
     if (SHELLS.has(cmd) || cmd === 'source' || cmd === '.' || cmd === 'eval') {
       out.findings.push(mk('pipe-to-shell', net ? `piping network download into ${cmd}` : prevDecode ? `piping decoded data into ${cmd}` : `piping data into ${cmd}`, `pipe-to-shell:${prevCmd}`, net || prevDecode ? 'high' : 'normal'));
-    } else if (net && /^(python[\d.]*|node|ruby|perl|php|deno|bun)$/.test(cmd)) {
+    } else if (net && INTERPRETER.test(cmd) && !hasOwnCode(args)) {
       out.findings.push(mk('pipe-to-shell', `piping network download into ${cmd}`, `pipe-to-shell:${prevCmd}`, 'high'));
     }
   }
@@ -561,7 +609,7 @@ function classifySegment(seg, ctx, depth, out) {
       }
       break;
     }
-    case 'git': gitRules(args, out); break;
+    case 'git': gitRules(args, out, ctx); break;
     case 'gh': ghRules(args, out); break;
     case 'curl': case 'wget': {
       curlRules(cmd, args, out, ctx);

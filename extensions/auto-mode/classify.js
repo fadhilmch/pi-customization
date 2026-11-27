@@ -56,7 +56,7 @@ function classifyToolCall(toolName, input, opts = {}) {
   const cwd = opts.cwd || process.cwd();
   const mode = opts.mode || 'auto';
   const config = opts.config || emptyConfig();
-  const ctx = { cwd, home, env: opts.env || process.env, config, tmpRoots: opts.tmpRoots };
+  const ctx = { cwd, home, env: opts.env || process.env, config, tmpRoots: opts.tmpRoots, currentBranch: opts.currentBranch, protectedBranches: config.protectedBranches };
   const inp = input || {};
 
   // ---- shell tools ----

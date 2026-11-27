@@ -267,3 +267,87 @@ test('checkpoint catches a same-size edit in the same second as the last index w
     rm(dir);
   }
 });
+
+test('numstat and diffText compare a checkpoint with the current tree', async () => {
+  const dir = makeRepo();
+  try {
+    const res = await ck.createCheckpoint(dir, { session: 's', prompt: 'p' });
+    w(dir, 'a.txt', 'a1\nmore\nlines\n'); // +2
+    w(dir, 'b.txt', ''); // -1
+    w(dir, 'new.bin', Buffer.from([0, 1, 2, 0]).toString('latin1')); // new file
+    const now = await ck.currentTree(dir);
+    const st = await ck.numstat(dir, res.checkpoint.tree, now);
+    assert.equal(st.files, 3);
+    assert.ok(st.added >= 2 && st.deleted === 1);
+    assert.deepEqual(await ck.numstat(dir, now, now), { added: 0, deleted: 0, files: 0 });
+    const d = await ck.diffText(dir, res.checkpoint.tree, now, ['a.txt']);
+    assert.match(d.stat, /a\.txt/);
+    assert.ok(!/b\.txt/.test(d.stat));
+    assert.match(d.patch, /\+more/);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('single-file restore only touches the selected paths', async () => {
+  const dir = makeRepo();
+  try {
+    w(dir, 'sub/x.txt', 'x1\n');
+    const res = await ck.createCheckpoint(dir, { session: 's', prompt: 'p' });
+    w(dir, 'a.txt', 'a2\n');
+    w(dir, 'b.txt', 'b2\n');
+    w(dir, 'sub/x.txt', 'x2\n');
+    w(dir, 'sub/y.txt', 'new\n');
+    const info = await ck.repoInfo(dir);
+
+    const paths = ck.resolveRepoPaths(path.join(dir, 'sub'), info.root, ['x.txt', '../a.txt']);
+    assert.deepEqual(paths, ['sub/x.txt', 'a.txt']);
+    const plan = await ck.planRestore(dir, res.checkpoint, { paths });
+    assert.deepEqual(plan.write.sort(), ['a.txt', 'sub/x.txt']);
+    assert.deepEqual(plan.remove, []);
+
+    const out = await ck.restoreCheckpoint(dir, res.checkpoint, { session: 's', paths });
+    assert.deepEqual(out.written.sort(), ['a.txt', 'sub/x.txt']);
+    assert.equal(r(dir, 'a.txt'), 'a1\n');
+    assert.equal(r(dir, 'sub/x.txt'), 'x1\n');
+    assert.equal(r(dir, 'b.txt'), 'b2\n', 'unselected file untouched');
+    assert.ok(exists(dir, 'sub/y.txt'), 'unselected new file untouched');
+    assert.equal(out.undo.kind, 'pre-restore'); // undoable
+    const back = await ck.restoreCheckpoint(dir, out.undo, { session: 's' });
+    assert.ok(back.written.length >= 2);
+    assert.equal(r(dir, 'a.txt'), 'a2\n');
+
+    // a directory selects everything under it, including deletions
+    const dirPlan = await ck.planRestore(dir, res.checkpoint, { paths: ['sub'] });
+    assert.deepEqual(dirPlan.remove, ['sub/y.txt']);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('resolveRepoPaths rejects paths outside the repo', () => {
+  const dir = makeRepo();
+  try {
+    assert.throws(() => ck.resolveRepoPaths(dir, dir, ['../outside.txt']), /outside the repository/);
+    assert.throws(() => ck.resolveRepoPaths(dir, dir, [os.tmpdir()]), /outside the repository/);
+    assert.throws(() => ck.resolveRepoPaths(dir, dir, ['']), /empty path/);
+    assert.deepEqual(ck.resolveRepoPaths(dir, dir, ['.']), ['']);
+  } finally {
+    rm(dir);
+  }
+});
+
+test('stats label, capText, diffReport and splitArgs', () => {
+  const now = Date.now();
+  const c = { turn: 2, time: now, files: 1, prompt: 'p', session: 'x', kind: 'auto' };
+  assert.equal(fmt.checkpointLabel(c, { now, stats: { added: 12, deleted: 3, files: 2 }, index: 1 }), '1. turn 2 · 0s ago · +12 −3, 2 files · p');
+  assert.match(fmt.checkpointLabel(c, { now, stats: { added: 0, deleted: 0, files: 0 } }), /no changes since/);
+  assert.match(fmt.statText({ added: 1, deleted: 0, files: 1 }), /^\+1 −0, 1 file$/);
+  const long = Array.from({ length: 300 }, (_, i) => `line ${i}`).join('\n');
+  const capped = fmt.capText(long, { maxLines: 10 });
+  assert.match(capped, /truncated \(290 more lines\)/);
+  assert.equal(fmt.capText('short'), 'short');
+  assert.match(fmt.diffReport(c, { stat: '', patch: '' }), /No differences/);
+  assert.match(fmt.diffReport(c, { stat: ' a | 1 +\n', patch: '+x\n' }, { paths: ['a'] }), /turn 2 \(a\)[\s\S]*a \| 1/);
+  assert.deepEqual(fmt.splitArgs('3 a.txt "my file.txt" \'x y\''), ['3', 'a.txt', 'my file.txt', 'x y']);
+});
