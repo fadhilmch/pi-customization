@@ -72,7 +72,8 @@ are blocked.
 Bash commands are split on `&&`, `||`, `;`, `|`, `&`, newlines, subshells, `$(...)`,
 backticks and `<(...)`; every part is classified and the call asks if any part
 is risky. Wrappers (`sudo`, `env`, `time`, `nohup`, `timeout`, `xargs`,
-`bash -c "..."`, `find -exec`) are unwrapped and the inner command classified.
+`bash -c "..."`, `find -exec`, `uv`/`poetry`/`pipenv`/`pdm`/`hatch run`) are unwrapped and the inner command classified.
+Commands inside `for`/`while`/`until` loops, `if`/`then`/`else`, `{ ...; }` groups and after `!` are classified like any other.
 
 | Category | Asks for |
 | --- | --- |
@@ -80,18 +81,18 @@ is risky. Wrappers (`sudo`, `env`, `time`, `nohup`, `timeout`, `xargs`,
 | Git | any `push` (higher severity: `--force`, `+ref`, `--delete`, `:ref`, or to main/master/trunk/prod/release); `reset --hard`; `clean -f`; `checkout`/`restore`/`switch` that discards changes; `branch -D`; `rebase` (not `--abort`); `stash drop/clear`; `filter-branch`; `reflog expire`; `gc --prune`; `tag -d` |
 | Privilege | `sudo`, `doas`, `su`, `pkexec` |
 | Permissions | `chmod`/`chown`/`chgrp` with `-R`, or `chmod 777`/`a+rwx` |
-| Code from the network | `curl`/`wget` piped into `sh`/`bash`/`python`..., piping anything into a shell, `bash <(curl ...)`, `eval`, `base64 -d \| sh` |
+| Code from the network | `curl`/`wget` piped into `sh`/`bash`, or into `python`/`node`... that reads its code from stdin (`\| python3 -c '...'` and `\| node parse.js` only read data), piping anything into a shell, `bash <(curl ...)`, `eval`, `base64 -d \| sh` |
 | Publishing | `npm`/`pnpm`/`yarn`/`bun publish`, `unpublish`, `deprecate`, `twine upload`, `cargo publish`, `gem push`, `poetry/uv publish`, `gh release create/delete/upload`, `vsce publish` |
 | GitHub | `gh pr merge`, `gh repo delete/archive/rename/edit`, `gh api` with `-X POST/PATCH/PUT/DELETE` or `-f/-F`, `gh secret/variable set/delete` |
 | Infra / deploy | `kubectl apply/delete/scale/rollout/patch/exec/...`, `helm install/upgrade/uninstall/rollback`, `terraform/tofu apply/destroy/import/state rm`, `pulumi up/destroy`, `docker push`, `docker system/volume/... prune`, `docker volume rm`, `docker run --privileged`, `ansible-playbook`, `vercel/netlify/fly/firebase/wrangler/cdk/serverless/heroku deploy|destroy|--prod` |
-| Cloud CLIs | `aws` actions that are not get/list/describe-style (and `s3 rm/sync/mv/rb/mb`, uploads), `gcloud`/`az` with mutating verbs (create, delete, update, set-*, ...), `gsutil rm/mv/rsync`, `bq rm/mk/load` |
+| Cloud CLIs | `aws` actions that are not get/list/describe-style (and `s3 rm/sync/mv/rb/mb`, uploads), `gcloud`/`az` with mutating verbs (create, delete, update, set-*, ...) unless the call is `--help`/`-h`, `gsutil rm/mv/rsync`, `bq rm/mk/load` |
 | Databases | `DROP`, `TRUNCATE`, `DELETE FROM` / `UPDATE` without `WHERE` inside `psql`/`mysql`/`sqlite3`/`mongosh`/`redis-cli`..., `FLUSHALL`, `dropdb`, `prisma migrate reset`, `rails db:drop` |
 | Processes / system | `killall`, `pkill`, `kill -9` and broad kills (plain `kill PID` is allowed), `shutdown`/`reboot`, `launchctl`/`systemctl` start/stop, `crontab` edits |
 | Global installs | `npm/pnpm/yarn/bun -g`, `pip install/uninstall` with no active virtualenv, `brew install/uninstall/upgrade`, `apt/dnf/pacman...`, `cargo install`, `gem install`, `go install` |
 | Network writes / remote | `curl -X POST/PUT/PATCH/DELETE`, `-d`, `-F`, `-T` (non-localhost), `ssh`, `scp`, `sftp`, `nc`, `rsync` to a remote host |
 | Secrets | any command whose arguments or redirects touch `.env*` (not `.env.example`), `*.pem`, `*.key`, `*.p12`, `id_rsa*`/`id_ed25519*` (not `.pub`), `.ssh/`, `.aws/`, `.gnupg/`, `.azure/`, `.kube/config`, `.docker/config.json`, `.npmrc`, `.pypirc`, `.netrc`, `credentials*.*`, `secrets*.*` |
 | Writes outside the project | redirections (`>`, `>>`, `&>`, `tee`) and `cp`/`mv`/`ln`/`install`/`rsync`/`touch`/`mkdir`/`sed -i`/`dd of=`/`curl -o` targets outside `ctx.cwd` (after resolving `~`, `..`, and symlinks) or built from unresolved variables |
-| Parse uncertainty | unbalanced quotes, `$'...'`, a command name from a variable or substitution, very long commands, and heredocs fed to anything but `cat`/`tee`/`git`/`gh`/`jq`-style tools |
+| Parse uncertainty | unbalanced quotes, `$'...'` with escapes other than `\n`, `\t`, `\r` and quotes (`$'\x72m'` could spell a hidden command), a command name from a variable or substitution, very long commands, and heredocs fed to anything but `cat`/`tee`/`git`/`gh`/`jq`-style tools or `python`/`node`-style interpreters (as unchecked as `python -c`, see [Limits](#limits)) |
 
 #### Branch guard
 
