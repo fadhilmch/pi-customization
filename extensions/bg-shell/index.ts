@@ -41,7 +41,7 @@ export default function (pi: ExtensionAPI) {
     const all = await jobs.list();
     if (ctx.mode !== "tui") return ctx.ui.notify(jobsPanel(all, 120).join("\n"), "info");
     const { matchesKey } = await import("@earendil-works/pi-tui");
-    await ctx.ui.custom<void>((_tui: any, _theme: any, _kb: any, done: (value: void) => void) => ({
+    await ctx.ui.custom((_tui: any, _theme: any, _kb: any, done: () => void) => ({
       render: (width: number) => jobsPanel(all, width), invalidate() {},
       handleInput(data: string) { if (data === "q" || matchesKey(data, "escape") || matchesKey(data, "return")) done(); },
     }), { overlay: true, overlayOptions: () => ({ width: Math.max(24, Math.min(100, (process.stdout.columns || 80) - 4)), maxHeight: "90%" }) });
