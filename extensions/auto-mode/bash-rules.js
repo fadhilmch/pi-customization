@@ -177,28 +177,35 @@ function checkReadPath(p, ctx, how, strict) {
 // ---- git -----------------------------------------------------------------------
 const MAIN_BRANCHES = /^(main|master|trunk|production|prod|release)$/;
 
+// dir: the directory `git -C <path>` points at (several -C compose, like git does), or null.
 function gitParts(args) {
   let i = 0;
+  let dir = null;
   while (i < args.length) {
     const a = args[i];
-    if (['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'].includes(a)) i += 2;
+    if (a === '-C') {
+      const p = args[i + 1];
+      if (p !== undefined) dir = dir === null || path.isAbsolute(p) ? p : path.join(dir, p);
+      i += 2;
+    } else if (['-c', '--git-dir', '--work-tree', '--namespace', '--exec-path'].includes(a)) i += 2;
     else if (a.startsWith('-')) i++;
     else break;
   }
-  return { sub: args[i], rest: args.slice(i + 1) };
+  return { sub: args[i], rest: args.slice(i + 1), dir };
 }
 
-// Branch guard: ctx.currentBranch is a string or a lazy () => string|null; ctx.protectedBranches a list.
-function protectedCurrentBranch(ctx) {
+// Branch guard: ctx.currentBranch is a string or a lazy (dir) => string|null, where dir is the
+// `git -C` target (null when absent); ctx.protectedBranches a list.
+function protectedCurrentBranch(ctx, dir = null) {
   const list = ctx.protectedBranches;
   if (!list || !list.length) return null;
   let b = ctx.currentBranch;
-  if (typeof b === 'function') { try { b = b(); } catch { b = null; } }
+  if (typeof b === 'function') { try { b = b(dir); } catch { b = null; } }
   return b && list.includes(b) ? b : null;
 }
 
 function gitRules(args, out, ctx = {}) {
-  const { sub, rest } = gitParts(args);
+  const { sub, rest, dir } = gitParts(args);
   if (!sub) return;
   const { short, long } = flagSet(rest);
   const pos = positional(rest);
@@ -206,12 +213,12 @@ function gitRules(args, out, ctx = {}) {
   switch (sub) {
     case 'commit': {
       if (has('--dry-run')) return;
-      const b = protectedCurrentBranch(ctx);
+      const b = protectedCurrentBranch(ctx, dir);
       if (b) out.findings.push(mk('branch-guard', `git commit on protected branch ${b}`, `commit:${b}`));
       return;
     }
     case 'push': {
-      const b = protectedCurrentBranch(ctx);
+      const b = protectedCurrentBranch(ctx, dir);
       if (b) {
         const refs = pos.slice(1);
         const targetsCurrent = !refs.length || refs.some((a) => {

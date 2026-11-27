@@ -99,8 +99,9 @@ On a protected branch (default `main`, `master`) `git commit` asks, and a `git p
 that targets the current branch (no refspec, `HEAD`, or the branch name) asks with
 a `branch-guard` reason. Plain `git push` already always asks, so for pushes this
 mostly adds a clearer reason. `git commit --dry-run` is not guarded. The branch is
-read with `git symbolic-ref` in the session cwd; detached HEAD or a non-repo means
-no guard. Set `protectedBranches` in the config to change the list.
+read with `git symbolic-ref` in the session cwd, or in the `git -C <dir>` target when
+the command has one (repeated `-C` compose); detached HEAD or a non-repo means
+no guard. `cd dir && git commit` is not followed. Set `protectedBranches` in the config to change the list.
 
 ### Decision log and dry run
 
