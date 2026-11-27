@@ -1,0 +1,37 @@
+✔ passes 1 (0.1ms)
+✔ passes 2 (0.2ms)
+✔ passes 3 (0.3ms)
+✔ passes 4 (0.4ms)
+✔ passes 5 (0.5ms)
+✔ passes 6 (0.6ms)
+✔ passes 7 (0.7ms)
+✔ passes 8 (0.8ms)
+✔ passes 9 (0.9ms)
+✔ passes 10 (0.10ms)
+✔ passes 11 (0.11ms)
+✔ passes 12 (0.12ms)
+✔ passes 13 (0.13ms)
+✔ passes 14 (0.14ms)
+✔ passes 15 (0.15ms)
+✔ passes 16 (0.16ms)
+✔ passes 17 (0.17ms)
+✔ passes 18 (0.18ms)
+✔ passes 19 (0.19ms)
+✔ passes 20 (0.20ms)
+✔ passes 21 (0.21ms)
+✔ passes 22 (0.22ms)
+✔ passes 23 (0.23ms)
+✔ passes 24 (0.24ms)
+✔ passes 25 (0.25ms)
+✔ passes 26 (0.26ms)
+✔ passes 27 (0.27ms)
+✔ passes 28 (0.28ms)
+✔ passes 29 (0.29ms)
+✔ passes 30 (0.30ms)
+✖ rejects bad input (1.2ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  1 !== 2
+ℹ tests 31
+ℹ pass 30
+ℹ fail 1
+ℹ duration_ms 120

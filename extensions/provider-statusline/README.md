@@ -34,12 +34,14 @@ Top line:
 - provider symbol and model name (`◉ Claude Opus 4.5`, `✳ Codex GPT-5`, ...)
 - thinking level
 - context usage bar
-- Claude/Codex session (`5h`) and weekly (`7d`) quota bars when known, otherwise the session cost
+- cache hit rate (`⚡ Cache 87%`): cache reads over all input tokens this session, hidden until something was served from cache
+- Claude/Codex session (`5h`) and weekly (`7d`) quota bars when known, with a reset countdown for each (`5h ↻ 2h 15m`, `↻ 1d 14h` for the weekly one) when the reset time is known; otherwise the session cost
+- the session cost also stays next to the quota bars when a `budget` is set
 
 Bottom line, separated by `│`:
 
 - working directory
-- git branch
+- git branch, followed by `*3` (changed and untracked files) and `↑2 ↓1` (commits ahead of / behind upstream); each part is hidden when zero
 - open pull request for the branch (`↗ PR #42 title`), when `gh` can resolve one
 - statuses set by other extensions via `ctx.ui.setStatus()`, dim, sorted by key
 
@@ -63,14 +65,19 @@ Create `~/.pi/agent/statusline.json` (or point `PI_STATUSLINE_CONFIG` at another
   "contextBar": true,
   "quota": true,
   "cost": true,
+  "cacheHit": true,
   "cwd": true,
   "gitBranch": true,
+  "gitStatus": true,
   "pullRequest": true,
   "extensionStatuses": true,
   "codexQuotaFetch": true,
-  "hotkeysShortcut": true
+  "hotkeysShortcut": true,
+  "budget": 5
 }
 ```
+
+`budget` is the only non-boolean key: a session cost in dollars, above zero. Leave it out for no budget.
 
 | Key | Effect when `false` | Env override |
 | --- | --- | --- |
@@ -80,10 +87,14 @@ Create `~/.pi/agent/statusline.json` (or point `PI_STATUSLINE_CONFIG` at another
 | `cost` | never show session cost | `PI_STATUSLINE_COST` |
 | `cwd` | hide the working directory | `PI_STATUSLINE_CWD` |
 | `gitBranch` | hide the branch | `PI_STATUSLINE_GIT_BRANCH` |
+| `gitStatus` | no dirty count or ahead/behind next to the branch, and no `git status` runs | `PI_STATUSLINE_GIT_STATUS` |
+| `cacheHit` | hide the cache hit rate | `PI_STATUSLINE_CACHE_HIT` |
 | `pullRequest` | never run `gh` | `PI_STATUSLINE_PULL_REQUEST` |
 | `extensionStatuses` | hide other extensions' status text | `PI_STATUSLINE_EXTENSION_STATUSES` |
 | `codexQuotaFetch` | no network call for Codex quota (see below) | `PI_STATUSLINE_CODEX_QUOTA_FETCH` |
 | `hotkeysShortcut` | do not register F1 | `PI_STATUSLINE_HOTKEYS_SHORTCUT` |
+
+`budget` (env `PI_STATUSLINE_BUDGET`): the cost segment is green below 80% of it, orange from 80% and red from 100%. Without a budget the cost colour is unchanged (orange). It is read from your own config file or env only, not from project files.
 
 Env values `0/false/off/no` and `1/true/on/yes` are accepted. Precedence: env, then file, then defaults. `hotkeysShortcut` is read when the extension loads.
 
@@ -114,12 +125,17 @@ Only when the active model's provider is `openai-codex` and `codexQuotaFetch` is
 
 - Replaces the footer with `ctx.ui.setFooter()`; branch comes from `footerData.getGitBranch()` and statuses from `footerData.getExtensionStatuses()`, so the footer re-renders when they change.
 - The PR label comes from `gh pr view`, run asynchronously at start, on branch change and every 60 s; the result is cached between runs. Nothing blocks rendering or startup.
+- The git markers come from `git status --porcelain=v2 --branch` (read-only, no index lock), run asynchronously at start, on branch change and every 60 s, like the PR lookup, and cached between runs.
+- The cache hit rate and the budget colour are computed from the session's usage on each render. Reset countdowns are recomputed from the reset timestamp on each render (and on the 60 s tick), so they do not freeze between quota refreshes.
 - Quota files/commands are also read in the background; the render path only reads cached values.
 - Missing `gh` (stops retrying), not a git repo, not logged in, no Codex auth or a network failure simply hide the corresponding segment.
 
 ## Limits
 
 - Cost shown is computed from Pi's usage data; for models without pricing it shows `?`.
+- The git markers can lag by up to 60 s after you edit files or commit (they refresh on branch change and on the timer, not on every file change). Untracked files count as dirty; on a very large repo `git status` may hit its 5 s timeout and the markers then stay hidden.
+- Cache hit rate needs a provider that reports cache reads; others show nothing. It counts the whole current branch.
+- The 5h countdown needs a 5h reset time: Claude's `anthropic-ratelimit-unified-5h-reset` header, a Codex window reset, or `fiveHour.resetAt` in the fallback file. When only the weekly reset is known, only the weekly countdown shows.
 - The PR segment needs GitHub CLI (`gh`) authenticated for the repo; only open PRs are shown.
 - Codex quota depends on an unofficial endpoint (see above). Claude quota only appears after the first response that carries rate-limit headers (or via the file/command fallback).
 - Status text from other extensions is shown without its original colors.

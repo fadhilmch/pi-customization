@@ -1,0 +1,87 @@
+On branch feat/x
+Your branch is up to date with 'origin/main'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   src/staged1.ts
+	modified:   src/staged2.ts
+	modified:   src/staged3.ts
+	new file:   src/added.ts
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+	modified:   src/mod/file1.ts
+	modified:   src/mod/file2.ts
+	modified:   src/mod/file3.ts
+	modified:   src/mod/file4.ts
+	modified:   src/mod/file5.ts
+	modified:   src/mod/file6.ts
+	modified:   src/mod/file7.ts
+	modified:   src/mod/file8.ts
+	modified:   src/mod/file9.ts
+	modified:   src/mod/file10.ts
+	modified:   src/mod/file11.ts
+	modified:   src/mod/file12.ts
+	modified:   src/mod/file13.ts
+	modified:   src/mod/file14.ts
+	modified:   src/mod/file15.ts
+	modified:   src/mod/file16.ts
+	modified:   src/mod/file17.ts
+	modified:   src/mod/file18.ts
+	modified:   src/mod/file19.ts
+	modified:   src/mod/file20.ts
+	modified:   src/mod/file21.ts
+	modified:   src/mod/file22.ts
+	modified:   src/mod/file23.ts
+	modified:   src/mod/file24.ts
+	modified:   src/mod/file25.ts
+	modified:   src/mod/file26.ts
+	modified:   src/mod/file27.ts
+	modified:   src/mod/file28.ts
+	modified:   src/mod/file29.ts
+	modified:   src/mod/file30.ts
+	deleted:    old.js
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	tmp/out1.log
+	tmp/out2.log
+	tmp/out3.log
+	tmp/out4.log
+	tmp/out5.log
+	tmp/out6.log
+	tmp/out7.log
+	tmp/out8.log
+	tmp/out9.log
+	tmp/out10.log
+	tmp/out11.log
+	tmp/out12.log
+	tmp/out13.log
+	tmp/out14.log
+	tmp/out15.log
+	tmp/out16.log
+	tmp/out17.log
+	tmp/out18.log
+	tmp/out19.log
+	tmp/out20.log
+	tmp/out21.log
+	tmp/out22.log
+	tmp/out23.log
+	tmp/out24.log
+	tmp/out25.log
+	tmp/out26.log
+	tmp/out27.log
+	tmp/out28.log
+	tmp/out29.log
+	tmp/out30.log
+	tmp/out31.log
+	tmp/out32.log
+	tmp/out33.log
+	tmp/out34.log
+	tmp/out35.log
+	tmp/out36.log
+	tmp/out37.log
+	tmp/out38.log
+	tmp/out39.log
+	tmp/out40.log
+

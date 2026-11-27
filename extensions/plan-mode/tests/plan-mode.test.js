@@ -92,3 +92,45 @@ test('tool sets merge the saved list with the currently active tools', () => {
   assert.deepEqual(plan.planTools(['read', 'write'], ['read', 'tool_search', 'edit']).sort(), ['exit_plan_mode', 'read', 'tool_search']);
   assert.deepEqual(plan.restoredTools(['read', 'write'], ['read', 'exit_plan_mode', 'ask_user', 'edit']).sort(), ['ask_user', 'read', 'write']);
 });
+
+test('diffLines: LCS keeps common lines, marks adds and removals', () => {
+  const d = plan.diffLines('a\nb\nc', 'a\nc\nd');
+  assert.deepEqual(d.map((x) => x.op + x.text), [' a', '-b', ' c', '+d']);
+  assert.deepEqual(plan.diffLines('x', 'x').map((x) => x.op), [' ']);
+});
+
+test('formatPlanDiff: empty for first submission or no change, compact otherwise', () => {
+  assert.equal(plan.formatPlanDiff(undefined, '1. a'), '');
+  assert.equal(plan.formatPlanDiff('1. a\n2. b', '1. a\n2. b'), '');
+  const out = plan.formatPlanDiff('1. a\n2. b', '1. a\n2. c\n3. d');
+  assert.match(out, /\+2 -1/);
+  assert.match(out, /^- 2\. b$/m);
+  assert.match(out, /^\+ 3\. d$/m);
+  assert.doesNotMatch(out, /^ ?1\. a/m);
+  const big = plan.formatPlanDiff('', Array.from({ length: 30 }, (_, i) => `l${i}`).join('\n'), { maxLines: 5 });
+  assert.match(big, /more changed lines/);
+});
+
+test('savePlan writes a timestamped file and never overwrites', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'plan-')), '.pi', 'plans');
+  const now = new Date('2026-01-02T03:04:05.678Z');
+  const a = plan.savePlan(dir, '1. one', now);
+  const b = plan.savePlan(dir, '1. two', now);
+  assert.notEqual(a, b);
+  assert.equal(fs.readFileSync(a, 'utf8'), '1. one\n');
+  assert.equal(fs.readFileSync(b, 'utf8'), '1. two\n');
+  assert.match(path.basename(a), /^2026-01-02T03-04-05-678Z\.md$/);
+});
+
+test('savePlan throws on an unwritable location (caller warns)', () => {
+  assert.throws(() => plan.savePlan('/dev/null/x', 'p'));
+});
+
+test('CHOICES has Edit plan; approvalMessage notes edits', () => {
+  assert.equal(plan.CHOICES.edit, 'Edit plan');
+  assert.match(plan.approvalMessage('auto', true), /after editing it/);
+  assert.doesNotMatch(plan.approvalMessage('auto'), /after editing/);
+});

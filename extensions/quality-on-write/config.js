@@ -4,11 +4,11 @@
 // SECURITY: the user config (~/.pi/agent/quality.json) is trusted and may define
 // custom formatter commands. The project config (<cwd>/.pi/quality.json) comes from
 // a repo that may be cloned from anywhere, so it can ONLY turn things off:
-// `format: false`, `typecheck: false` and `disable: [...]`. Its `formatters` field
+// `format: false`, `typecheck: false`, `lint: false` and `disable: [...]`. Its `formatters` field
 // and any `true` values are ignored.
 const path = require("node:path");
 
-const DEFAULTS = Object.freeze({ format: true, typecheck: true, formatters: {}, disable: [] });
+const DEFAULTS = Object.freeze({ format: true, typecheck: true, lint: true, formatters: {}, disable: [] });
 
 function asStringList(v) {
   return Array.isArray(v) ? v.filter((x) => typeof x === "string" && x) : [];
@@ -21,10 +21,11 @@ function normExt(k) {
 }
 
 function parseUser(raw) {
-  const out = { format: true, typecheck: true, formatters: {}, disable: [] };
+  const out = { format: true, typecheck: true, lint: true, formatters: {}, disable: [] };
   if (!raw || typeof raw !== "object") return out;
   if (typeof raw.format === "boolean") out.format = raw.format;
   if (typeof raw.typecheck === "boolean") out.typecheck = raw.typecheck;
+  if (typeof raw.lint === "boolean") out.lint = raw.lint;
   out.disable = asStringList(raw.disable);
   if (raw.formatters && typeof raw.formatters === "object") {
     for (const [k, v] of Object.entries(raw.formatters)) {
@@ -36,10 +37,11 @@ function parseUser(raw) {
 
 /** Project config reduced to the restrictive subset. */
 function parseProject(raw) {
-  const out = { format: true, typecheck: true, formatters: {}, disable: [] };
+  const out = { format: true, typecheck: true, lint: true, formatters: {}, disable: [] };
   if (!raw || typeof raw !== "object") return out;
   if (raw.format === false) out.format = false;
   if (raw.typecheck === false) out.typecheck = false;
+  if (raw.lint === false) out.lint = false;
   out.disable = asStringList(raw.disable);
   return out;
 }
@@ -48,6 +50,7 @@ function mergeConfig(user, project) {
   return {
     format: user.format && project.format,
     typecheck: user.typecheck && project.typecheck,
+    lint: user.lint && project.lint,
     formatters: { ...user.formatters },
     disable: [...new Set([...user.disable, ...project.disable].map((s) => s.toLowerCase()))],
   };

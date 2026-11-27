@@ -68,6 +68,43 @@ test('git-checkpoint index.ts registers hooks and /rewind, checkpoints per promp
     await handlers.session_before_fork({ entryId: 'u1', position: 'before' }, ctx);
     assert.equal(fs.readFileSync(path.join(dir, 'f.txt'), 'utf8'), '4\n');
 
+    // /rewind <n> <path> restores one file; diff shows changes; outside-repo path is refused
+    fs.writeFileSync(path.join(dir, 'f.txt'), '5\n');
+    fs.writeFileSync(path.join(dir, 'g.txt'), 'g\n');
+    notes.length = 0;
+    const oldest = sh(dir, 'for-each-ref', 'refs/pi-checkpoints').trim().split('\n').length; // list is newest first; oldest = turn 1
+    await commands.rewind.handler(`diff ${oldest}`, ctx);
+    assert.match(notes.at(-1)[0], /Changes since checkpoint turn 1[\s\S]*f\.txt/);
+    await commands.rewind.handler(`${oldest} ../outside.txt`, ctx);
+    assert.match(notes.at(-1)[0], /outside the repository/);
+    await commands.rewind.handler(`${oldest} f.txt`, ctx);
+    assert.match(notes.at(-1)[0], /Restored from turn/);
+    assert.equal(fs.readFileSync(path.join(dir, 'f.txt'), 'utf8'), '2\n');
+    assert.equal(fs.readFileSync(path.join(dir, 'g.txt'), 'utf8'), 'g\n', 'other files untouched');
+    await commands.rewind.handler('diff 99', ctx);
+    assert.match(notes.at(-1)[0], /No checkpoint 99/);
+
+    // full /rewind: list shows line stats; "code + conversation" navigates the tree without a second prompt
+    fs.writeFileSync(path.join(dir, 'f.txt'), '6\n');
+    let shown;
+    const navigated = [];
+    ctx.navigateTree = async (id) => {
+      navigated.push(id);
+      await handlers.session_before_tree({ preparation: { targetId: id } }, ctx); // Pi fires this hook
+      return { cancelled: false };
+    };
+    selectAnswer = (t, o) => {
+      if (/Rewind code to/.test(t)) {
+        shown = o;
+        return o.find((x) => /^\d+\. turn 1 /.test(x));
+      }
+      return o[1]; // code + conversation
+    };
+    await commands.rewind.handler('', ctx);
+    assert.match(shown[0], /^1\. turn \d+ · .* · \+\d+ −\d+, \d+ files? · /);
+    assert.deepEqual(navigated, ['u1']);
+    assert.equal(fs.readFileSync(path.join(dir, 'f.txt'), 'utf8'), '2\n');
+
     // /rewind lists and clean works
     selectAnswer = (t, o) => undefined;
     await commands.rewind.handler('', ctx);

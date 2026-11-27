@@ -11,15 +11,20 @@ const BARE_RE = /^[a-z0-9][a-z0-9_-]*$/i;
 
 // Appended to every child's system prompt. The child's final message is all the parent ever sees,
 // and the parent keeps paying for it on every later turn, so it has to be short.
-function contractPrompt(maxChars) {
+function contractPrompt(maxChars, maxTurns) {
   const words = Math.max(80, Math.round(maxChars / 6 / 10) * 10);
-  return [
+  const parts = [
     'You are running as a subagent: a separate process with a fresh context, started by another agent.',
     'Nobody can answer questions mid-task. Work with what you were given; if something is missing, say so in your report.',
     'Only your final message is returned to the agent that delegated to you. Make it a compact report:',
     'findings, decisions and changes, with path:line references. Quote only the lines that matter;',
     `never paste whole files or long logs. Stay under about ${words} words.`,
-  ].join(' ');
+  ];
+  // A running child cannot be messaged (stdin is closed in JSON mode), so the limit is told up front.
+  if (maxTurns) {
+    parts.push(`You have at most ${maxTurns} turns (a turn is one model response). Wrap up and write your final report by turn ${Math.max(1, maxTurns - 2)}.`, `After turn ${maxTurns} you are stopped and only your last message is kept.`);
+  }
+  return parts.join(' ');
 }
 
 // "auto-mode" -> sibling extension; "builtin:x" unchanged; anything else is a path relative to baseDir.
@@ -87,7 +92,7 @@ function buildChildArgs(agent, task, { dispatch = {}, config = {}, configDir, ho
   if (agent.tools && agent.tools.length) args.push('--tools', agent.tools.join(','));
 
   const budget = outputBudget(agent, config, maxChars);
-  args.push('--append-system-prompt', contractPrompt(budget));
+  args.push('--append-system-prompt', contractPrompt(budget, agent.maxTurns));
   if (agent.systemPrompt) args.push('--append-system-prompt', agent.systemPrompt);
   args.push(`Task: ${String(task).trim()}`);
   return { args, model, warnings };
