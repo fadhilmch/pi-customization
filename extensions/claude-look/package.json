@@ -1,7 +1,7 @@
 {
   "name": "@fadhilmch/pi-claude-look",
   "version": "0.1.0",
-  "description": "Claude Code look for Pi: bullets, folded tool output, diff colours, spinner, welcome box, plus the claude-dark theme.",
+  "description": "Claude Code look for Pi: bullets, folded tool output, diff colours, spinner with elapsed time and tokens, welcome box, an on/compact/off switch, plus the claude-dark and claude-light themes.",
   "license": "MIT",
   "author": "Fadhil Mochammad",
   "keywords": [
