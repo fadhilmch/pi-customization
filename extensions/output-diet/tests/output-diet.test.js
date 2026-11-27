@@ -182,7 +182,7 @@ test('stats tally, restore and format', () => {
   const s = new Stats();
   s.record('fold', 40000, 4000);
   s.record('dedupe', 8000, 100);
-  assert.deepEqual(s.snapshot(), { folds: 1, dedupes: 1, charsSaved: 43900, tokensSaved: 10975 });
+  assert.deepEqual(s.snapshot(), { folds: 1, dedupes: 1, charsSaved: 43900, tokensSaved: 10975, byFolder: { generic: { count: 1, charsSaved: 36000 } } });
   const r = new Stats();
   r.restore([
     { role: 'toolResult', details: { outputDiet: { kind: 'fold', before: 1000, after: 200 } } },
