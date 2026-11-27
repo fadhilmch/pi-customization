@@ -100,7 +100,7 @@ export default function (pi: ExtensionAPI) {
       refreshWidget(ctx);
       return {
         content: [{ type: "text", text: resultText(todos, result.warnings) }],
-        details: { todos: [...todos] },
+        details: { todos: [...todos], error: undefined },
       };
     },
 

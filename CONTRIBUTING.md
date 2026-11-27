@@ -36,6 +36,15 @@ The root `package.json` is the whole-repo Pi package: `pi.extensions` is `./exte
 npm test
 ```
 
+Type-check the extension entry points (`extensions/*/index.ts`) with:
+
+```sh
+npm ci
+npm run typecheck
+```
+
+This installs only type definitions and TypeScript (dev dependencies). The runtime code stays dependency-free, and CI runs the same check.
+
 ## Testing against a real Pi
 
 No model or API key is needed to check that an extension loads and registers its commands. Use an isolated agent directory so your own settings are untouched:
