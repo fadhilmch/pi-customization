@@ -58,6 +58,8 @@ The main session is the planner and does not write the feature code itself.
 3. Build: it writes one shared brief file for the workers, runs the groups in order, and checks each report against its step before the next group starts.
 4. Finish: it applies the shared-file edits, merges any worker branches, runs the tests on the combined result, has one reviewer check the final diff, and commits without pushing.
 
+If you asked to ship, it then pushes and opens a PR (the `/ship` steps).
+
 About 1,100 tokens of instructions, paid only on turns that use it.
 
 The tool takes exactly one mode:
