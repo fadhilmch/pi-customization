@@ -6,9 +6,34 @@
 //   p.press('down'); p.press('enter');   // keys: up down left right tab shift-tab enter space backspace escape
 //   p.type('free text');                 // printable text, only used while typing an "Other" answer
 //   p.result()  -> null while open, else { cancelled: true } | { cancelled: false, answers: [{header, selected, other}] }
-const { COLORS, fg, bold, dim, truncate, wrapAnsi } = require('./ansi.js');
+const { COLORS, fg, bold, dim, truncate, wrapAnsi, padTo } = require('./ansi.js');
 
 const OTHER_LABEL = 'Other (type your own)';
+const SIDE_BY_SIDE_MIN_WIDTH = 100; // below this the preview goes under the option list
+const PREVIEW_ROWS_SIDE = 14;
+const PREVIEW_ROWS_BELOW = 8;
+
+// Option rows plus the focused option's preview: beside the list on wide terminals, below it otherwise.
+// Height is capped; a cut preview ends with a "… N more lines" row.
+function layoutPreview(list, preview, w) {
+  if (!preview) return list.map((r) => truncate(r, w));
+  const side = w >= SIDE_BY_SIDE_MIN_WIDTH;
+  const listW = side ? Math.floor(w * 0.45) : w;
+  const room = side ? w - listW - 3 : w - 4;
+  const cap = side ? PREVIEW_ROWS_SIDE : PREVIEW_ROWS_BELOW;
+  let rows = preview.split('\n').map((l) => truncate(l, room));
+  if (rows.length > cap) {
+    const hidden = rows.length - (cap - 1);
+    rows = [...rows.slice(0, cap - 1), dim(`… ${hidden} more line${hidden === 1 ? '' : 's'}`)];
+  }
+  if (!side) return [...list.map((r) => truncate(r, w)), '', ...rows.map((r) => `   ${dim('│')} ${r}`)];
+  const out = [];
+  for (let i = 0; i < Math.max(list.length, rows.length); i++) {
+    const left = padTo(truncate(list[i] ?? '', listW), listW);
+    out.push(i < rows.length ? `${left} ${dim('│')} ${rows[i]}` : left.trimEnd());
+  }
+  return out;
+}
 
 function createPicker(questions) {
   const n = questions.length;
@@ -154,6 +179,7 @@ function createPicker(questions) {
     for (const row of wrapAnsi(bold(q.question), w - 2)) out.push(` ${row}`);
     out.push('');
     const all = [...q.options, { label: OTHER_LABEL, description: '' }];
+    const list = []; // option rows; the preview (if any) is laid out next to or under them
     all.forEach((o, j) => {
       const cur = j === s.cursor;
       const other = j === q.options.length;
@@ -164,9 +190,10 @@ function createPicker(questions) {
       if (other && typing && cur) label = `${mark} ${OTHER_LABEL.replace(/ \(.*\)/, '')}: ${buffer}${accent('▏')}`;
       else if (other && s.other) label = `${mark} Other: ${s.other}`;
       const styled = cur ? accent(label) : on ? fg(COLORS.success, label) : label;
-      out.push(truncate(` ${pointer} ${styled}${on && !q.multiSelect && !other ? ` ${fg(COLORS.success, '✓')}` : ''}`, w));
-      if (o.description) out.push(truncate(`      ${fg(COLORS.muted, o.description)}`, w));
+      list.push(` ${pointer} ${styled}${on && !q.multiSelect && !other ? ` ${fg(COLORS.success, '✓')}` : ''}`);
+      if (o.description) list.push(`      ${fg(COLORS.muted, o.description)}`);
     });
+    out.push(...layoutPreview(list, q.options[s.cursor]?.preview, w));
     out.push('');
     const help = typing
       ? 'Enter confirm · Esc back'

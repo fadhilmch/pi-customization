@@ -1,0 +1,79 @@
+/repo/src/file1.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file2.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+  8:4  warning  'v4' is assigned a value but never used  no-unused-vars
+  10:5  error  'v5' is assigned a value but never used  no-unused-vars
+  12:6  error  'v6' is assigned a value but never used  no-unused-vars
+  14:7  error  'v7' is assigned a value but never used  no-unused-vars
+  16:8  warning  'v8' is assigned a value but never used  no-unused-vars
+  18:9  error  'v9' is assigned a value but never used  no-unused-vars
+  20:10  error  'v10' is assigned a value but never used  no-unused-vars
+  22:11  error  'v11' is assigned a value but never used  no-unused-vars
+  24:12  warning  'v12' is assigned a value but never used  no-unused-vars
+  26:13  error  'v13' is assigned a value but never used  no-unused-vars
+  28:14  error  'v14' is assigned a value but never used  no-unused-vars
+  30:15  error  'v15' is assigned a value but never used  no-unused-vars
+  32:16  warning  'v16' is assigned a value but never used  no-unused-vars
+  34:17  error  'v17' is assigned a value but never used  no-unused-vars
+  36:18  error  'v18' is assigned a value but never used  no-unused-vars
+  38:19  error  'v19' is assigned a value but never used  no-unused-vars
+  40:20  warning  'v20' is assigned a value but never used  no-unused-vars
+  42:21  error  'v21' is assigned a value but never used  no-unused-vars
+  44:22  error  'v22' is assigned a value but never used  no-unused-vars
+  46:23  error  'v23' is assigned a value but never used  no-unused-vars
+  48:24  warning  'v24' is assigned a value but never used  no-unused-vars
+  50:25  error  'v25' is assigned a value but never used  no-unused-vars
+  52:26  error  'v26' is assigned a value but never used  no-unused-vars
+  54:27  error  'v27' is assigned a value but never used  no-unused-vars
+  56:28  warning  'v28' is assigned a value but never used  no-unused-vars
+  58:29  error  'v29' is assigned a value but never used  no-unused-vars
+  60:30  error  'v30' is assigned a value but never used  no-unused-vars
+  62:31  error  'v31' is assigned a value but never used  no-unused-vars
+  64:32  warning  'v32' is assigned a value but never used  no-unused-vars
+  66:33  error  'v33' is assigned a value but never used  no-unused-vars
+  68:34  error  'v34' is assigned a value but never used  no-unused-vars
+  70:35  error  'v35' is assigned a value but never used  no-unused-vars
+  72:36  warning  'v36' is assigned a value but never used  no-unused-vars
+  74:37  error  'v37' is assigned a value but never used  no-unused-vars
+  76:38  error  'v38' is assigned a value but never used  no-unused-vars
+  78:39  error  'v39' is assigned a value but never used  no-unused-vars
+  80:40  warning  'v40' is assigned a value but never used  no-unused-vars
+
+/repo/src/file3.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file4.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file5.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file6.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file7.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+/repo/src/file8.js
+  2:1  error  'v1' is assigned a value but never used  no-unused-vars
+  4:2  error  'v2' is assigned a value but never used  no-unused-vars
+  6:3  error  'v3' is assigned a value but never used  no-unused-vars
+
+✖ 61 problems (51 errors, 10 warnings)
+

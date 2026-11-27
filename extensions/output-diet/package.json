@@ -1,7 +1,7 @@
 {
   "name": "@fadhilmch/pi-output-diet",
   "version": "0.1.0",
-  "description": "Cuts tokens from noisy tool output: folds long bash logs to head, error lines and tail (full text saved to a file) and replaces repeated identical reads with a short note.",
+  "description": "Cuts tokens from noisy tool output: summarises long output of git, test runners, tsc, eslint, installs, grep, find and ls -R, folds other bash logs to head, error lines and tail (full text saved to a file) and replaces repeated identical reads with a short note.",
   "license": "MIT",
   "author": "Fadhil Mochammad",
   "keywords": [

@@ -2,11 +2,13 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { FOLDER_NAMES } = require('./folders.js');
 
 // SECURITY: the user config (~/.pi/agent/output-diet.json) is trusted. The project config
 // (<cwd>/.pi/output-diet.json) comes from a repo you may not own: it can only TIGHTEN, i.e. turn
 // the extension or read dedupe off, or fold more aggressively (lower thresholds, smaller head/tail,
-// fewer matches). It can never add allowlist entries or patterns, or raise a limit.
+// fewer matches), or switch a command folder ON (enableFolders). It can never add allowlist entries or
+// patterns, raise a limit, or switch a folder off.
 
 const DEFAULTS = Object.freeze({
   enabled: true,
@@ -26,6 +28,7 @@ const DEFAULTS = Object.freeze({
   allowlist: ['^\\s*cat\\s', '^\\s*git\\s+(diff|show|log)\\b', '^\\s*(head|tail|sed|awk|jq|wc|echo|printf)\\b'],
   dedupeReads: true,
   minDedupeChars: 400,
+  disableFolders: [],
 });
 
 const NUMERIC = ['thresholdLines', 'thresholdBytes', 'headLines', 'tailLines', 'context', 'maxMatches', 'maxLineChars', 'minDedupeChars'];
@@ -51,6 +54,10 @@ function sanitize(raw) {
     const v = posInt(raw[k], k === 'context' || k === 'minDedupeChars' ? 0 : 1);
     if (v !== undefined) out[k] = v;
   }
+  for (const k of ['disableFolders', 'enableFolders']) {
+    const l = strList(raw[k]);
+    if (l) out[k] = [...new Set(l.filter((n) => FOLDER_NAMES.includes(n)))];
+  }
   for (const k of ['patterns', 'ignore', 'allowlist']) {
     const l = strList(raw[k]);
     if (l) out[k] = validRegexes(l);
@@ -60,10 +67,13 @@ function sanitize(raw) {
 
 // user: parsed ~/.pi/agent/output-diet.json (or undefined); project: parsed <cwd>/.pi/output-diet.json.
 function mergeConfig(user, project) {
-  const cfg = { ...DEFAULTS, ...sanitize(user) };
+  const u = sanitize(user);
+  const cfg = { ...DEFAULTS, ...u, disableFolders: u.disableFolders || [] };
+  delete cfg.enableFolders;
   const p = sanitize(project);
   if (p.enabled === false) cfg.enabled = false;
   if (p.dedupeReads === false) cfg.dedupeReads = false;
+  if (p.enableFolders) cfg.disableFolders = cfg.disableFolders.filter((n) => !p.enableFolders.includes(n));
   for (const k of TIGHTEN_DOWN) if (p[k] !== undefined && p[k] < cfg[k]) cfg[k] = p[k];
   return cfg;
 }

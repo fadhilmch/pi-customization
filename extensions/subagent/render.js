@@ -60,6 +60,8 @@ function runHeader(run, { withStep = false, withTask = false } = {}) {
   if (usage) parts.push(usage);
   const end = run.endedAt || Date.now();
   if (run.status !== 'running') parts.push(formatDuration(end - run.startedAt));
+  if (run.truncated) parts.push(dim(`stopped at ${run.maxTurns} turns`));
+  if (run.worktree?.kept) parts.push(dim(`⎇ ${run.worktree.branch}`));
   if (isFailed(run)) parts.push(fg(COLORS.error, run.status === 'aborted' ? 'aborted' : run.errorMessage ? oneLine(run.errorMessage) : 'failed'));
   return parts.join(dim(' · '));
 }

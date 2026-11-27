@@ -1,0 +1,54 @@
+running 40 tests
+test tests::case_1 ... ok
+test tests::case_2 ... ok
+test tests::case_3 ... ok
+test tests::case_4 ... ok
+test tests::case_5 ... ok
+test tests::case_6 ... ok
+test tests::case_7 ... ok
+test tests::case_8 ... ok
+test tests::case_9 ... FAILED
+test tests::case_10 ... ok
+test tests::case_11 ... ok
+test tests::case_12 ... ok
+test tests::case_13 ... ok
+test tests::case_14 ... ok
+test tests::case_15 ... ok
+test tests::case_16 ... ok
+test tests::case_17 ... ok
+test tests::case_18 ... ok
+test tests::case_19 ... ok
+test tests::case_20 ... ok
+test tests::case_21 ... ok
+test tests::case_22 ... ok
+test tests::case_23 ... ok
+test tests::case_24 ... ok
+test tests::case_25 ... ok
+test tests::case_26 ... ok
+test tests::case_27 ... ok
+test tests::case_28 ... ok
+test tests::case_29 ... ok
+test tests::case_30 ... ok
+test tests::case_31 ... ok
+test tests::case_32 ... ok
+test tests::case_33 ... ok
+test tests::case_34 ... ok
+test tests::case_35 ... ok
+test tests::case_36 ... ok
+test tests::case_37 ... ok
+test tests::case_38 ... ok
+test tests::case_39 ... ok
+test tests::case_40 ... ok
+
+failures:
+
+---- tests::case_9 stdout ----
+thread 'tests::case_9' panicked at src/lib.rs:44:9:
+assertion `left == right` failed
+  left: 1
+ right: 2
+
+failures:
+    tests::case_9
+
+test result: FAILED. 39 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s

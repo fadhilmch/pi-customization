@@ -230,13 +230,67 @@ async function createCheckpoint(cwd, { session, prompt = '', kind = 'auto', keep
   };
 }
 
-/** What restoring `checkpoint` would do right now (writes only loose objects). */
-async function planRestore(cwd, checkpoint) {
+/** Tree object of the current work tree (same temp-index method as a checkpoint; writes only loose objects). */
+async function currentTree(cwd) {
+  const info = await repoInfo(cwd);
+  if (!info) throw new Error('not a git repository');
+  return writeWorkTree(cwd, info);
+}
+
+/** Line stats of what changed after a checkpoint: {added, deleted, files}. Binary files count as a file, 0 lines. */
+async function numstat(cwd, fromTree, toTree) {
+  const out = await git(cwd, ['diff', '--numstat', '--no-renames', '-z', fromTree, toTree]);
+  let added = 0;
+  let deleted = 0;
+  let files = 0;
+  for (const rec of out.split('\0')) {
+    if (!rec) continue;
+    const [a, d] = rec.split('\t');
+    files++;
+    added += Number(a) || 0; // '-' for binary files
+    deleted += Number(d) || 0;
+  }
+  return { added, deleted, files };
+}
+
+/** Stat + patch of checkpoint -> tree, for display. Optionally limited to repo-relative paths. */
+async function diffText(cwd, fromTree, toTree, paths = []) {
+  const tail = paths.length ? ['--', ...paths.map((p) => `:(top,literal)${p}`)] : [];
+  const base = ['diff', '--no-renames', '--no-color', '--no-ext-diff'];
+  const stat = await git(cwd, [...base, '--stat', fromTree, toTree, ...tail]);
+  const patch = await git(cwd, [...base, fromTree, toTree, ...tail], { timeout: SNAPSHOT_TIMEOUT });
+  return { stat, patch };
+}
+
+/**
+ * Turn user-typed paths (relative to cwd or absolute) into repo-relative paths.
+ * Throws when a path is empty or resolves outside the repository. '' means the repo root (everything).
+ */
+function resolveRepoPaths(cwd, root, inputs) {
+  const rootReal = fs.realpathSync(root);
+  const cwdReal = fs.realpathSync(cwd);
+  return inputs.map((input) => {
+    if (!input || input.includes('\0')) throw new Error('empty path');
+    const rel = path.relative(rootReal, path.resolve(cwdReal, input));
+    if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) {
+      throw new Error(`path is outside the repository: ${input}`);
+    }
+    return rel.split(path.sep).join('/');
+  });
+}
+
+function pathSelected(p, specs) {
+  return specs.some((s) => s === '' || p === s || p.startsWith(s + '/'));
+}
+
+/** What restoring `checkpoint` would do right now (writes only loose objects). `paths` limits it to those repo-relative paths. */
+async function planRestore(cwd, checkpoint, { paths } = {}) {
   const info = await repoInfo(cwd);
   if (!info) throw new Error('not a git repository');
   if (info.busy) throw new Error(`refusing to rewind: ${info.busy}`);
   const current = await writeWorkTree(cwd, info);
-  const changes = await diffFiles(cwd, current, checkpoint.tree);
+  let changes = await diffFiles(cwd, current, checkpoint.tree);
+  if (paths && paths.length) changes = changes.filter((c) => pathSelected(c.path, paths));
   return {
     root: info.root,
     write: changes.filter((c) => c.status !== 'D').map((c) => c.path), // changed or deleted since: put back as at checkpoint
@@ -253,15 +307,15 @@ function chunk(list, n) {
 /**
  * Restore the work tree to a checkpoint.
  *  1. checkpoint the current state first (kind 'pre-restore') so the restore is undoable
- *  2. for every path that differs between now and the checkpoint: rewrite it from the checkpoint,
+ *  2. for every path that differs (or only the selected `paths`, if given) between now and the checkpoint: rewrite it from the checkpoint,
  *     or delete it if the checkpoint does not contain it
  * Nothing else is touched: index, HEAD, branches, stash list, ignored files, files identical in both states.
  */
-async function restoreCheckpoint(cwd, checkpoint, { session, keep = DEFAULT_KEEP } = {}) {
-  const plan = await planRestore(cwd, checkpoint);
+async function restoreCheckpoint(cwd, checkpoint, { session, keep = DEFAULT_KEEP, paths } = {}) {
+  const plan = await planRestore(cwd, checkpoint, { paths });
   const safety = await createCheckpoint(cwd, {
     session,
-    prompt: `before rewind to turn ${checkpoint.turn}`,
+    prompt: `before rewind to turn ${checkpoint.turn}${paths && paths.length ? ' (selected files)' : ''}`,
     kind: 'pre-restore',
     keep,
   });
@@ -298,6 +352,10 @@ module.exports = {
   createCheckpoint,
   listCheckpoints,
   planRestore,
+  currentTree,
+  numstat,
+  diffText,
+  resolveRepoPaths,
   restoreCheckpoint,
   pruneCheckpoints,
   deleteAllCheckpoints,

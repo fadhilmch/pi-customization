@@ -34,7 +34,8 @@ function formatUsd(amount) {
   return `$${amount.toFixed(2)}`;
 }
 
-function getSessionCostText(ctx) {
+// { text, total }: the footer text and the numeric spend it is based on (for budget colouring).
+function getSessionCostInfo(ctx) {
   let total = 0;
   let sawUsage = false;
   let sawUnknown = false;
@@ -59,12 +60,43 @@ function getSessionCostText(ctx) {
     if (hasTokenUsage(message.usage)) sawUnknown = true;
   }
 
-  if (total > 0 || sawUsage) return formatUsd(total);
-  if (sawUnknown) return '?';
-  if (modelHasPricing(ctx.model)) return '$0.00';
-  return '';
+  if (total > 0 || sawUsage) return { text: formatUsd(total), total };
+  if (sawUnknown) return { text: '?', total };
+  if (modelHasPricing(ctx.model)) return { text: '$0.00', total };
+  return { text: '', total };
+}
+
+function getSessionCostText(ctx) {
+  return getSessionCostInfo(ctx).text;
+}
+
+// Share of input tokens served from the prompt cache over the session: cacheRead / (input + cacheRead + cacheWrite).
+// null when nothing was cached or sent yet, or when the provider never reports cache usage.
+function getCacheHitPct(ctx) {
+  let reads = 0;
+  let all = 0;
+  for (const entry of ctx.sessionManager.getBranch()) {
+    if (entry.type !== 'message') continue;
+    const message = entry.message;
+    if (message.role !== 'assistant' || !message.usage) continue;
+    const u = message.usage;
+    reads += Number(u.cacheRead) || 0;
+    all += (Number(u.input) || 0) + (Number(u.cacheRead) || 0) + (Number(u.cacheWrite) || 0);
+  }
+  if (all <= 0 || reads <= 0) return null;
+  return (reads / all) * 100;
+}
+
+// Cost segment colour level against a budget: 'ok' under 80%, 'warn' from 80%, 'error' from 100%.
+function budgetLevel(total, budget) {
+  if (!(budget > 0) || !Number.isFinite(total)) return null;
+  const ratio = total / budget;
+  return ratio >= 1 ? 'error' : ratio >= 0.8 ? 'warn' : 'ok';
 }
 
 module.exports = {
   getSessionCostText,
+  getSessionCostInfo,
+  getCacheHitPct,
+  budgetLevel,
 };
