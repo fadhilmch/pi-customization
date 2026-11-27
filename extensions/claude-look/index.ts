@@ -48,13 +48,13 @@ export default function (pi: ExtensionAPI) {
     return {
       renderShell: "self",
       renderCall(args: any, theme: any, context: any) {
-        return lines((width) => {
+        return lines((width: number) => {
           const state = context.isError ? "error" : context.isPartial || !context.executionStarted ? "pending" : "success";
           return [formatCallLine(toolName, args, { state, cwd: context.cwd, width, pad: context.outputPad ?? 0, palette: paletteFromTheme(theme) })];
         });
       },
       renderResult(result: any, options: any, theme: any, context: any) {
-        return lines((width) =>
+        return lines((width: number) =>
           formatResult(toolName, result, {
             expanded: options.expanded,
             isPartial: options.isPartial,
