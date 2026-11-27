@@ -41,7 +41,8 @@ function normalizeQuotaPayload(payload, nowMs = Date.now()) {
 
   const resetText = resetAt ? formatCountdown(resetAt, nowMs) : '';
   if (!Number.isFinite(fiveHourPct) && !Number.isFinite(sevenDayPct) && !resetText) return null;
-  return { fiveHourPct, sevenDayPct, resetText };
+  const fiveHourResetAt = payload.fiveHour?.resetAt ?? payload.fiveHour?.resetsAt ?? payload.five_hour?.resets_at ?? null;
+  return { fiveHourPct, sevenDayPct, resetText, resetAtMs: timestampToMs(resetAt), fiveHourResetAtMs: timestampToMs(fiveHourResetAt) };
 }
 
 function numberOrNull(value) {
@@ -79,10 +80,16 @@ function normalizeHeaderQuota(headers, nowMs = Date.now()) {
   ]);
   const resetText = resetAt ? formatCountdown(resetAt, nowMs) : '';
   if (!Number.isFinite(fiveHourPct) && !Number.isFinite(sevenDayPct) && !resetText) return null;
+  const fiveHourResetAt = firstHeader(headers, [
+    'anthropic-ratelimit-unified-5h-reset',
+    'x-ratelimit-5h-reset',
+  ]);
   return {
     fiveHourPct: Number.isFinite(fiveHourPct) ? fiveHourPct : null,
     sevenDayPct: Number.isFinite(sevenDayPct) ? sevenDayPct : null,
     resetText,
+    resetAtMs: timestampToMs(resetAt),
+    fiveHourResetAtMs: timestampToMs(fiveHourResetAt),
   };
 }
 
@@ -118,6 +125,7 @@ function normalizeCodexWindow(window, nowMs) {
   return {
     usedPct: Number.isFinite(usedPct) ? usedPct : null,
     resetText,
+    resetAtMs: Number.isFinite(resetAt) ? resetAt : null,
     durationSeconds: numberOrNull(window.limit_window_seconds ?? window.limitWindowSeconds),
   };
 }
@@ -152,6 +160,8 @@ function normalizeCodexUsage(payload, nowMs = Date.now()) {
     fiveHourPct: slots.fiveHour?.usedPct ?? null,
     sevenDayPct: slots.sevenDay?.usedPct ?? null,
     resetText: resetWindow?.resetText ?? '',
+    resetAtMs: resetWindow?.resetAtMs ?? null,
+    fiveHourResetAtMs: slots.fiveHour?.resetAtMs ?? null,
   };
 }
 

@@ -69,10 +69,16 @@ function formatCountdown(resetAt, nowMs = Date.now()) {
   return `${minutes}m`;
 }
 
-function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, quota, show = {}, level = 0 }) {
+// Countdown recomputed at render time from the reset timestamp (the cached text goes stale between refreshes).
+function liveCountdown(resetAtMs, fallback, nowMs) {
+  if (Number.isFinite(resetAtMs)) return formatCountdown(resetAtMs, nowMs);
+  return fallback || '';
+}
+
+function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, sessionCostLevel = null, cacheHitPct = null, quota, show = {}, level = 0, nowMs = Date.now() }) {
   // level 0: 8-cell bars; 1: 4-cell bars; 2: no bars ("Ctx 42%")
   const kind = getProviderKind(model);
-  const { providerSymbol = true, contextBar = true, quota: showQuota = true, cost: showCost = true } = show;
+  const { providerSymbol = true, contextBar = true, quota: showQuota = true, cost: showCost = true, cacheHit: showCacheHit = true } = show;
   const bar = (pct) => (level >= 2 ? '' : `${makeBar(pct, level === 1 ? 4 : 8)} `);
   const items = [
     { key: 'model', text: formatModelLabel(model, { symbol: providerSymbol }) },
@@ -81,6 +87,14 @@ function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, 
   if (contextBar) {
     items.push({ key: 'context', text: `🧠 Ctx ${bar(contextPct)}${roundPercent(contextPct)}%`, pct: roundPercent(contextPct) });
   }
+
+  if (showCacheHit && Number.isFinite(cacheHitPct)) {
+    items.push({ key: 'cacheHit', text: `⚡ Cache ${roundPercent(cacheHitPct)}%` });
+  }
+
+  // The budget makes cost worth showing next to the quota bars too.
+  const costItem = () => ({ key: 'cost', text: `💰 Cost ${sessionCostText}`, level: sessionCostLevel });
+  const showBudgetCost = showCost && sessionCostText && sessionCostLevel;
 
   const hasQuota = showQuota && quota && (Number.isFinite(quota.fiveHourPct) || Number.isFinite(quota.sevenDayPct) || quota.resetText);
   if ((kind === 'claude' || kind === 'codex') && hasQuota) {
@@ -98,21 +112,27 @@ function buildPrimaryItems({ model, thinkingLevel, contextPct, sessionCostText, 
         pct: roundPercent(quota.sevenDayPct),
       });
     }
-    if (quota.resetText) {
-      items.push({ key: 'reset', text: level >= 2 ? `↻${quota.resetText}` : `↻ ${quota.resetText}` });
+    const fiveReset = liveCountdown(quota.fiveHourResetAtMs, '', nowMs);
+    if (Number.isFinite(quota.fiveHourPct) && fiveReset) {
+      items.push({ key: 'fiveHourReset', text: level >= 2 ? `↻5h ${fiveReset}` : `5h ↻ ${fiveReset}` });
     }
+    const reset = liveCountdown(quota.resetAtMs, quota.resetText, nowMs);
+    if (reset) {
+      items.push({ key: 'reset', text: level >= 2 ? `↻${reset}` : `↻ ${reset}` });
+    }
+    if (showBudgetCost) items.push(costItem());
     return items;
   }
 
   if (showCost && sessionCostText) {
-    items.push({ key: 'cost', text: `💰 Cost ${sessionCostText}` });
+    items.push(costItem());
   }
 
   return items;
 }
 
 // Drop order when even the compact form does not fit: first in the list goes first.
-const DROP_ORDER = ['cost', 'sevenDay', 'thinking', 'reset', 'fiveHour', 'context', 'model'];
+const DROP_ORDER = ['cost', 'cacheHit', 'sevenDay', 'fiveHourReset', 'thinking', 'reset', 'fiveHour', 'context', 'model'];
 
 // Fit the primary line into `width` by degrading gracefully: shrink bars (8 -> 4 -> none), then drop the
 // lowest-priority items (cost, 7d, thinking level, ...) so the model, context, 5h and reset survive longest.
