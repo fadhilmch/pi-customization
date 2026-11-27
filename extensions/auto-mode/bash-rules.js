@@ -188,14 +188,39 @@ function gitParts(args) {
   return { sub: args[i], rest: args.slice(i + 1) };
 }
 
-function gitRules(args, out) {
+// Branch guard: ctx.currentBranch is a string or a lazy () => string|null; ctx.protectedBranches a list.
+function protectedCurrentBranch(ctx) {
+  const list = ctx.protectedBranches;
+  if (!list || !list.length) return null;
+  let b = ctx.currentBranch;
+  if (typeof b === 'function') { try { b = b(); } catch { b = null; } }
+  return b && list.includes(b) ? b : null;
+}
+
+function gitRules(args, out, ctx = {}) {
   const { sub, rest } = gitParts(args);
   if (!sub) return;
   const { short, long } = flagSet(rest);
   const pos = positional(rest);
   const has = (...names) => names.some((n) => long.has(n) || (n.length === 2 && short.has(n[1])));
   switch (sub) {
+    case 'commit': {
+      if (has('--dry-run')) return;
+      const b = protectedCurrentBranch(ctx);
+      if (b) out.findings.push(mk('branch-guard', `git commit on protected branch ${b}`, `commit:${b}`));
+      return;
+    }
     case 'push': {
+      const b = protectedCurrentBranch(ctx);
+      if (b) {
+        const refs = pos.slice(1);
+        const targetsCurrent = !refs.length || refs.some((a) => {
+          const ref = a.replace(/^\+/, '');
+          const dst = ref.includes(':') ? ref.split(':').pop() : ref;
+          return dst.replace(/^refs\/heads\//, '') === b || (!ref.includes(':') && ref === 'HEAD');
+        });
+        if (targetsCurrent) out.findings.push(mk('branch-guard', `git push from protected branch ${b}`, `push:${b}`));
+      }
       const force = has('--force', '-f', '--force-with-lease', '--force-if-includes', '--mirror') || rest.some((a) => /^\+\S/.test(a) && !a.startsWith('+-'));
       const del = has('--delete', '-d') || rest.some((a) => /^:\S/.test(a));
       const toMain = rest.some((a) => {
@@ -561,7 +586,7 @@ function classifySegment(seg, ctx, depth, out) {
       }
       break;
     }
-    case 'git': gitRules(args, out); break;
+    case 'git': gitRules(args, out, ctx); break;
     case 'gh': ghRules(args, out); break;
     case 'curl': case 'wget': {
       curlRules(cmd, args, out, ctx);

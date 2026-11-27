@@ -8,7 +8,7 @@ const MODES = ['auto', 'ask', 'off'];
 const STRICTNESS = { off: 0, auto: 1, ask: 2 };
 
 function emptyConfig() {
-  return { mode: 'auto', allow: [], ask: [], deny: [], protectedPaths: [], warnings: [] };
+  return { mode: 'auto', allow: [], ask: [], deny: [], protectedPaths: [], protectedBranches: ['main', 'master'], warnings: [] };
 }
 
 function readJson(file, warnings) {
@@ -81,6 +81,9 @@ function mergeConfigs(user, project, warnings = []) {
     ...strings(u.protectedPaths, 'protectedPaths', 'user config', warnings),
     ...strings(p.protectedPaths, 'protectedPaths', 'project config', warnings),
   ];
+  // Branch guard: the user list replaces the default, the project list only adds.
+  cfg.protectedBranches = u.protectedBranches === undefined ? cfg.protectedBranches : strings(u.protectedBranches, 'protectedBranches', 'user config', warnings);
+  for (const b of strings(p.protectedBranches, 'protectedBranches', 'project config', warnings)) if (!cfg.protectedBranches.includes(b)) cfg.protectedBranches.push(b);
   return cfg;
 }
 

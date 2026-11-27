@@ -32,7 +32,7 @@ From npm (once published): `pi install npm:@fadhilmch/pi-auto-mode`. See the [ro
 
 ## Usage
 
-Commands: `/auto`, `/auto auto|ask|off|status`, shortcut `ctrl+alt+a`.
+Commands: `/auto`, `/auto auto|ask|off|status`, `/auto log [n]`, `/auto test "<cmd>"`, shortcut `ctrl+alt+a`.
 
 ### Modes
 
@@ -93,6 +93,33 @@ is risky. Wrappers (`sudo`, `env`, `time`, `nohup`, `timeout`, `xargs`,
 | Writes outside the project | redirections (`>`, `>>`, `&>`, `tee`) and `cp`/`mv`/`ln`/`install`/`rsync`/`touch`/`mkdir`/`sed -i`/`dd of=`/`curl -o` targets outside `ctx.cwd` (after resolving `~`, `..`, and symlinks) or built from unresolved variables |
 | Parse uncertainty | unbalanced quotes, `$'...'`, a command name from a variable or substitution, very long commands, and heredocs fed to anything but `cat`/`tee`/`git`/`gh`/`jq`-style tools |
 
+#### Branch guard
+
+On a protected branch (default `main`, `master`) `git commit` asks, and a `git push`
+that targets the current branch (no refspec, `HEAD`, or the branch name) asks with
+a `branch-guard` reason. Plain `git push` already always asks, so for pushes this
+mostly adds a clearer reason. `git commit --dry-run` is not guarded. The branch is
+read with `git symbolic-ref` in the session cwd; detached HEAD or a non-repo means
+no guard. Set `protectedBranches` in the config to change the list.
+
+### Decision log and dry run
+
+- `/auto log [n]` shows the last `n` decisions (default 20, max 500) of this
+  session as a notification (printed to stdout when there is no UI). One line each:
+  time, verdict, tool, target, rule ids and the outcome of a prompt.
+- `/auto test "<cmd>"` classifies a bash command and prints verdict, matched
+  rule/category and reason for the current mode; `/auto test write <path>` (or
+  `edit <path>`) does the same for file tools. It executes nothing and logs nothing.
+
+Every gate decision (allow, ask, deny) is appended to
+`<os tmpdir>/pi-auto-mode/<session id>/decisions.jsonl` (dir `0700`, file `0600`) as
+`{ts, tool, target, rule, reason, verdict, outcome}`. `outcome` is `allowed once`,
+`allowed for session`, `allowed (session rule)`, `denied`, `blocked (no UI)`, or
+`null` for allow/deny. The target is whitespace-collapsed, secrets masked
+(`Bearer` tokens, `token=`/`password=`/`api_key=` values, `--token x`, `user:pass@`)
+and cut to 200 characters. The masking is best effort. The log lives in the OS temp
+dir, so it is cleared on reboot.
+
 #### Hard denials (every mode, including `off`)
 
 `rm -rf` (recursive) of `/`, `~`, `$HOME`, `/*`, `~/*`, `/usr`, `/etc`, `/Users`...,
@@ -117,7 +144,8 @@ Optional JSON, merged in this order: `~/.pi/agent/auto-mode.json` (user), `<cwd>
   "allow": ["^git push origin feature/"],
   "ask": ["^make deploy"],
   "deny": ["^terraform destroy"],
-  "protectedPaths": ["src/generated/**", "*.lock", "~/notes/**"]
+  "protectedPaths": ["src/generated/**", "*.lock", "~/notes/**"],
+  "protectedBranches": ["main", "master", "release"]
 }
 ```
 
@@ -126,13 +154,14 @@ Optional JSON, merged in this order: `~/.pi/agent/auto-mode.json` (user), `<cwd>
 - `ask`: regexes that force a confirmation.
 - `deny`: regexes that always block (also in `off` mode).
 - `protectedPaths`: globs (`*`, `**`, `?`). A leading `/` or `~/` anchors the glob; anything else matches at any depth. Matching paths ask for writes, edits, redirects and reads.
+- `protectedBranches`: branch names (exact) where `git commit` / `git push` ask. Default `["main", "master"]`. The user config replaces the default (`[]` turns the guard off); the project config can only add names.
 
 Invalid JSON or regexes are skipped and reported as warnings at session start.
 
 ### Project config can only be stricter
 
 A cloned repository can ship `.pi/auto-mode.json`, so it is untrusted. From the
-project file only `ask`, `deny` and `protectedPaths` are used. `allow` is
+project file only `ask`, `deny`, `protectedPaths` and `protectedBranches` (add-only) are used. `allow` is
 ignored, and `mode` is honoured only when it is stricter than the user's
 (`auto` -> `ask`); `"mode": "off"` from a project is ignored. Only the
 user-level file, or the `/auto` command, can loosen anything. Warnings tell you
@@ -144,6 +173,7 @@ are themselves a confirmation-required write.
 - `index.ts` - wires Pi: `tool_call` gate, `/auto` command, Ctrl+Alt+A shortcut, status.
 - `gate.js` - mode state, session allow-list, confirmation prompt.
 - `classify.js` - tool call -> `allow | ask | deny` decision.
+- `decision-log.js` - JSONL decision log, secret masking, text for `/auto log` and `/auto test`.
 - `bash-rules.js`, `shell.js`, `paths.js`, `config.js` - rules, splitter, path/glob helpers, config merge.
 - `tests/` - `node --test extensions/auto-mode/tests/*.test.js`.
 
@@ -160,5 +190,6 @@ are themselves a confirmation-required write.
 - Unknown/MCP tools are allowed in `auto`.
 - Writes through `bash` to in-project paths are not checked beyond the rules above
   (the project itself is considered "yours").
-- The session allow-list and the mode live in memory only.
+- The session allow-list and the mode live in memory only. The decision log is a temp file (see above).
+- Branch guard uses the session cwd's branch: `git -C other-dir commit` and commits inside `cd sub && ...` of another repo are judged by the cwd branch.
 - For real isolation use a container/VM or Pi's sandbox example.

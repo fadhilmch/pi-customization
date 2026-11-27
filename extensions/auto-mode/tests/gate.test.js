@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const { createState, gate, nextMode, parseModeArg, statusText, setMode, preview } = require('../gate.js');
+const { createState, gate, showLog, runTest, nextMode, parseModeArg, statusText, setMode, preview } = require('../gate.js');
 
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'auto-mode-gate-')));
 const cwd = path.join(root, 'proj');
@@ -191,4 +191,78 @@ test('index.ts loads under node --experimental-strip-types and wires Pi correctl
   assert.equal(r.bogus[1], 'error');
   assert.match(r.shortcutStatus[1], /ask/);
   assert.deepEqual(r.completions, [{ value: 'auto', label: 'auto' }, { value: 'ask', label: 'ask' }]);
+});
+
+const { redact, formatLog } = require('../decision-log.js');
+const logState = (extra) => createState(Object.assign({ home, env: {}, tmpRoots, logRoot: path.join(root, 'logs') }, extra));
+const readLines = (st) => fs.readFileSync(st.logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+test('decision log: one JSONL line per decision with ask outcomes, file mode 0600', async () => {
+  const st = logState({ branch: 'feature/x' });
+  const ctx = Object.assign(fakeCtx('Allow once'), { sessionManager: { getSessionId: () => 'sess/1' } });
+  await gate(bashEvent('ls'), ctx, st);
+  await gate(bashEvent('git push origin feature/x'), ctx, st);
+  const denyCtx = Object.assign(fakeCtx('Deny'), { sessionManager: ctx.sessionManager });
+  await gate(bashEvent('rm -rf dist'), denyCtx, st);
+  const sessCtx = Object.assign(fakeCtx('Allow for this session'), { sessionManager: ctx.sessionManager });
+  await gate(bashEvent('rm -rf out'), sessCtx, st);
+  await gate(bashEvent('rm -rf out'), sessCtx, st);
+  await gate(bashEvent('rm -rf /'), ctx, st);
+  await gate(bashEvent('git push'), Object.assign(fakeCtx(null, false), { sessionManager: ctx.sessionManager }), st);
+  const e = readLines(st);
+  assert.deepEqual(e.map((x) => [x.verdict, x.outcome]), [
+    ['allow', null], ['ask', 'allowed once'], ['ask', 'denied'], ['ask', 'allowed for session'],
+    ['ask', 'allowed (session rule)'], ['deny', null], ['ask', 'blocked (no UI)'],
+  ]);
+  assert.equal(e[1].tool, 'bash');
+  assert.equal(e[1].target, 'git push origin feature/x');
+  assert.equal(e[1].rule, 'git-push');
+  assert.ok(e[0].ts);
+  assert.match(st.logFile, /sess_1/);
+  assert.equal(fs.statSync(st.logFile).mode & 0o777, 0o600);
+});
+
+test('decision log: redacts secrets and truncates', () => {
+  assert.doesNotMatch(redact('curl -H "Authorization: Bearer abc123def456" x'), /abc123/);
+  assert.doesNotMatch(redact('curl -H "X-Id: Bearer abc123def456" x'), /abc123/);
+  assert.match(redact('API_KEY=sk-live-1234 node x'), /API_KEY=\*\*\* node x/);
+  assert.match(redact('git clone https://u:pw@host/r'), /u:\*\*\*@host/);
+  assert.match(redact('tool --token abcdef'), /--token \*\*\*/);
+  assert.ok(redact('x'.repeat(1000)).length <= 200);
+});
+
+test('/auto log and /auto test parse and run', async () => {
+  assert.deepEqual(parseModeArg('log'), { log: 20 });
+  assert.deepEqual(parseModeArg('log 5'), { log: 5 });
+  assert.ok(parseModeArg('log 0').error);
+  assert.ok(parseModeArg('log abc').error);
+  assert.deepEqual(parseModeArg('test "git push -f"'), { test: { tool: 'bash', text: 'git push -f' } });
+  assert.deepEqual(parseModeArg('test ls -la'), { test: { tool: 'bash', text: 'ls -la' } });
+  assert.deepEqual(parseModeArg('test write ./a.txt'), { test: { tool: 'write', text: './a.txt' } });
+  assert.ok(parseModeArg('test').error);
+
+  const st = logState({ branch: 'main' });
+  const out = [];
+  const ctx = { cwd, hasUI: true, ui: { notify: (m) => out.push(m) } };
+  runTest(st, ctx, { tool: 'bash', text: 'git commit -m x' });
+  assert.match(out[0], /verdict: ask/);
+  assert.match(out[0], /branch-guard/);
+  assert.match(out[0], /protected branch main/);
+  runTest(st, ctx, { tool: 'bash', text: 'rm -rf /' });
+  assert.match(out[1], /verdict: deny/);
+  runTest(st, ctx, { tool: 'write', text: '.env' });
+  assert.match(out[2], /verdict: ask/);
+  runTest(st, ctx, { tool: 'bash', text: 'ls' });
+  assert.match(out[3], /verdict: allow/);
+  assert.match(out[3], /none matched/);
+  assert.equal(st.logFile, null, 'dry run logs nothing');
+
+  const ctx2 = Object.assign(fakeCtx('Allow once'), { sessionManager: { getSessionId: () => 'log-test' } });
+  for (const c of ['ls', 'pwd', 'git push']) await gate(bashEvent(c), ctx2, st);
+  showLog(st, Object.assign({}, ctx, { sessionManager: ctx2.sessionManager }), 2);
+  assert.equal(out[4].split('\n').length, 2);
+  assert.match(out[4], /pwd/);
+  assert.match(out[4], /git push/);
+  assert.doesNotMatch(out[4], / ls /);
+  assert.match(formatLog([]), /no decisions/);
 });
